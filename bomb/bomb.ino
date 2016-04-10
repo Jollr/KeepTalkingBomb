@@ -2,6 +2,7 @@
 const int buttonPin = 2;
 const int ledPin = 13;
 
+int prevButtonState = false;
 int buttonPushCounter = 0;
 
 void setup() {
@@ -11,26 +12,30 @@ void setup() {
 }
 
 void loop() {
-  // read the state of the pushbutton value:
-  int buttonState = digitalRead(buttonPin);
-
-  // check if the pushbutton is pressed.
-  // if it is, the buttonState is HIGH:
-  if (buttonState == HIGH) {
+  updateButtonCounter();
+  if (buttonPushCounter == 3) {
     // turn LED on:
     digitalWrite(ledPin, HIGH);
   } else {
     // turn LED off:
     digitalWrite(ledPin, LOW);
   }
+
+  delay(1);
 }
 
-/*void slumber(int ms) {
-  bool prevState = false;
-  int n = 0;
-  for (n = 0; n < ms; n++) {
-    delay(1);
+void updateButtonCounter() {
+  int buttonState = digitalRead(buttonPin);
+
+  if (buttonState != prevButtonState) {
+    prevButtonState = buttonState;
     
+    if (buttonState == HIGH) {
+      buttonPushCounter++;
+      if (buttonPushCounter == 4) {
+        buttonPushCounter = 0;
+      }
+    }
   }
 }
-*/
+
