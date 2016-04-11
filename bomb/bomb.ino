@@ -6,6 +6,8 @@ const int ledPin = 13;
 const int rgbLedPinRed = 10;
 const int rgbLedPinGreen = 11;
 const int rgbLedPinBlue = 12;
+const int irLedPin = 5;
+const int irIndicatorLedPin = 6;
 
 // program state
 int prevButtonState = false;
@@ -20,6 +22,11 @@ void setup() {
   pinMode(rgbLedPinGreen, OUTPUT);
   pinMode(rgbLedPinBlue, OUTPUT);
   pinMode(buttonPin, INPUT);
+  pinMode(irLedPin, INPUT);
+  pinMode(irIndicatorLedPin, OUTPUT);
+
+  Serial.begin(9600);
+  Serial.println("test");
 }
 
 void loop() {
@@ -28,6 +35,9 @@ void loop() {
 
   updateTimeCounter();
   updateRgbLeds();
+
+  irRead();
+
   delay(1);
 }
 
@@ -133,3 +143,31 @@ void setRgbLeds(rgb_leg_state state) {
   }
 }
 
+void irRead()
+{
+  int loopCount = 20000;
+  int counter = 0;
+  for (int i = 0; i < loopCount; i++) {
+    counter = counter + digitalRead(irLedPin);
+    delayMicroseconds(1);
+  }
+
+  if (counter < loopCount) {
+    digitalWrite(irIndicatorLedPin, HIGH);
+    Serial.println(counter);
+  } else {
+    digitalWrite(irIndicatorLedPin, LOW);
+  }
+  
+  /*int halfPeriod = 13; //one period at 38.5khZ is aproximately 26 microseconds
+  int cycles = 38; //26 microseconds * 38 is more or less 1 millisecond
+  int i;
+  for (i=0; i <=cycles; i++)
+  {
+    digitalWrite(triggerPin, HIGH); 
+    delayMicroseconds(halfPeriod);
+    digitalWrite(triggerPin, LOW); 
+    delayMicroseconds(halfPeriod - 1);     // - 1 to make up for digitaWrite overhead    
+  }
+  return digitalRead(readPin);*/
+}
