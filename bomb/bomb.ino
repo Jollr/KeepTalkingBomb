@@ -1,3 +1,5 @@
+#include "pitches.h"
+
 typedef enum {OFF, RED, GREEN, BLUE, REDANDGREEN, REDANDBLUE, GREENANDBLUE, ALL} rgb_leg_state;
 
 // pin numbers
@@ -8,6 +10,7 @@ const int rgbLedPinGreen = 11;
 const int rgbLedPinBlue = 12;
 const int irLedPin = 5;
 const int irIndicatorLedPin = 6;
+const int soundPin = 4;
 
 // program state
 int prevButtonState = false;
@@ -37,6 +40,8 @@ void loop() {
   updateRgbLeds();
 
   irRead();
+
+  sound();
 
   delay(1);
 }
@@ -171,3 +176,25 @@ void irRead()
   }
   return digitalRead(readPin);*/
 }
+
+void sound() {
+  if (timeCounter < timeStep) {
+    //tone(soundPin, 440, timeStep);
+  }
+  if (timeCounter < timeStep) {
+    tone(soundPin, NOTE_A3, timeStep);
+  } else if (timeCounter < 2*timeStep) {
+    tone(soundPin, NOTE_A4, timeStep);
+  } else if (timeCounter < 3*timeStep) {
+    tone(soundPin, NOTE_C4, timeStep);
+  } else if (timeCounter < 4*timeStep) {
+    tone(soundPin, NOTE_F4, timeStep);
+  } else if (timeCounter < 5*timeStep) {
+    tone(soundPin, NOTE_E4, timeStep);
+  } else if (timeCounter < 6*timeStep) {
+    tone(soundPin, NOTE_E3, timeStep);
+  } else if (timeCounter < 7*timeStep) {
+    tone(soundPin, NOTE_A3, timeStep);
+  } 
+}
+
