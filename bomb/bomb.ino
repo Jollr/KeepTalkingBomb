@@ -4,22 +4,28 @@ typedef enum {OFF, RED, GREEN, BLUE, REDANDGREEN, REDANDBLUE, GREENANDBLUE, ALL}
 
 // pin numbers
 const int buttonPin = 2;
+const int button2Pin = 3;
 const int ledPin = 13;
 const int rgbLedPinRed = 10;
 const int rgbLedPinGreen = 11;
 const int rgbLedPinBlue = 12;
 const int irLedPin = 5;
-const int irIndicatorLedPin = 6;
 const int soundPin = 4;
+const int latchPin = 8;
+const int dataPin = 7;
+const int clockPin = 9;
 
 // program state
 int prevButtonState = false;
+int prevButton2State = false;
 int buttonPushCounter = 0;
 int timeStep = 700;
 unsigned long prevTimeStamp = millis();
 unsigned long timeCounter = 0;
 unsigned long prevIrTimeStamp = millis();
 unsigned long irTimeCounter = 0;
+unsigned long prevSegmentTimeStamp = millis();
+unsigned long segmentTimeCounter = 0;
 
 void setup() {
   pinMode(ledPin, OUTPUT);
@@ -27,8 +33,12 @@ void setup() {
   pinMode(rgbLedPinGreen, OUTPUT);
   pinMode(rgbLedPinBlue, OUTPUT);
   pinMode(buttonPin, INPUT);
+  pinMode(button2Pin, INPUT);
   pinMode(irLedPin, INPUT);
-  pinMode(irIndicatorLedPin, OUTPUT);
+
+  pinMode(latchPin, OUTPUT);
+  pinMode(dataPin, OUTPUT);  
+  pinMode(clockPin, OUTPUT);
 
   Serial.begin(9600);
   Serial.println("test");
@@ -43,15 +53,13 @@ void loop() {
 
   sound();
 
-  delay(1);
+  update7Segment();
 }
 
 void updateButtonLed() {
   if (buttonPushCounter == 3) {
-    // turn LED on:
     digitalWrite(ledPin, HIGH);
   } else {
-    // turn LED off:
     digitalWrite(ledPin, LOW);
   }
 }
@@ -103,48 +111,22 @@ rgb_leg_state getRgbLedState() {
   return ALL;
 }
 
+void setRgbLeds(int r, int g, int b) {
+  digitalWrite(rgbLedPinRed, r);
+  digitalWrite(rgbLedPinGreen, g);
+  digitalWrite(rgbLedPinBlue, b);
+}
+
 void setRgbLeds(rgb_leg_state state) {
   switch(state) {
-    case OFF:
-      digitalWrite(rgbLedPinRed, LOW);
-      digitalWrite(rgbLedPinGreen, LOW);
-      digitalWrite(rgbLedPinBlue, LOW);
-      break;
-    case RED:
-      digitalWrite(rgbLedPinRed, HIGH);
-      digitalWrite(rgbLedPinGreen, LOW);
-      digitalWrite(rgbLedPinBlue, LOW);
-      break; 
-    case GREEN:
-      digitalWrite(rgbLedPinRed, LOW);
-      digitalWrite(rgbLedPinGreen, HIGH);
-      digitalWrite(rgbLedPinBlue, LOW);
-      break; 
-    case BLUE:
-      digitalWrite(rgbLedPinRed, LOW);
-      digitalWrite(rgbLedPinGreen, LOW);
-      digitalWrite(rgbLedPinBlue, HIGH);
-      break; 
-    case REDANDGREEN:
-      digitalWrite(rgbLedPinRed, HIGH);
-      digitalWrite(rgbLedPinGreen, HIGH);
-      digitalWrite(rgbLedPinBlue, LOW);
-      break; 
-    case REDANDBLUE:
-      digitalWrite(rgbLedPinRed, HIGH);
-      digitalWrite(rgbLedPinGreen, LOW);
-      digitalWrite(rgbLedPinBlue, HIGH);
-      break; 
-    case GREENANDBLUE:
-      digitalWrite(rgbLedPinRed, LOW);
-      digitalWrite(rgbLedPinGreen, HIGH);
-      digitalWrite(rgbLedPinBlue, HIGH);
-      break; 
-    case ALL:
-      digitalWrite(rgbLedPinRed, HIGH);
-      digitalWrite(rgbLedPinGreen, HIGH);
-      digitalWrite(rgbLedPinBlue, HIGH);
-      break; 
+    case OFF: setRgbLeds(LOW, LOW, LOW); break;
+    case RED: setRgbLeds(HIGH, LOW, LOW); break;
+    case GREEN: setRgbLeds(LOW, HIGH, LOW); break;
+    case BLUE: setRgbLeds(LOW, LOW, HIGH); break;
+    case REDANDGREEN: setRgbLeds(HIGH, HIGH, LOW); break;
+    case REDANDBLUE: setRgbLeds(HIGH, LOW, HIGH); break;
+    case GREENANDBLUE: setRgbLeds(LOW, HIGH, HIGH); break;
+    case ALL: setRgbLeds(HIGH, HIGH, HIGH); break;
   }
 }
 
@@ -158,22 +140,9 @@ bool irRead()
   }
 
   return counter < loopCount;
-  
-  /*int halfPeriod = 13; //one period at 38.5khZ is aproximately 26 microseconds
-  int cycles = 38; //26 microseconds * 38 is more or less 1 millisecond
-  int i;
-  for (i=0; i <=cycles; i++)
-  {
-    digitalWrite(triggerPin, HIGH); 
-    delayMicroseconds(halfPeriod);
-    digitalWrite(triggerPin, LOW); 
-    delayMicroseconds(halfPeriod - 1);     // - 1 to make up for digitaWrite overhead    
-  }
-  return digitalRead(readPin);*/
 }
 
 void sound() {
-
   unsigned long now = millis();
   
   if (irRead()) {
@@ -184,59 +153,47 @@ void sound() {
     irTimeCounter = 0;
     return;
   }
-  
-  //Serial.println(irTimeCounter);
-  /*if (timeCounter < timeStep) {
-    //tone(soundPin, 440, timeStep);
-  }*/
 
   int length = 100;
   if (irTimeCounter < 1 * timeStep) {
     tone(soundPin, NOTE_E3, length);
-  } else if (irTimeCounter < 2*timeStep) {
-    tone(soundPin, NOTE_GS3, length);
-  } else if (irTimeCounter < 3*timeStep) {
+  } else if (irTimeCounter < 1.5*timeStep) {
+    tone(soundPin, NOTE_G3, length);
+  } else if (irTimeCounter < 2.5*timeStep) {
     tone(soundPin, NOTE_FS3, length);
+  } else if (irTimeCounter < 3*timeStep) {
+    tone(soundPin, NOTE_B2, length);
   } else if (irTimeCounter < 4*timeStep) {
     tone(soundPin, NOTE_B2, length);
-  } else if (irTimeCounter < 5.5*timeStep) {
+  } else if (irTimeCounter < 5*timeStep) {
+    return;
+  }
+}
+
+void update7Segment() {
+  int button2State = digitalRead(button2Pin);
+  unsigned long now = millis();
+  int interval = 200;
+  int numCombinations = 256;
+  
+  if (button2State == HIGH) {
+    segmentTimeCounter = segmentTimeCounter + now - prevSegmentTimeStamp;
+    prevSegmentTimeStamp = now;
+    prevButton2State = button2State;
+  } else {
+    prevSegmentTimeStamp = now;
+    prevButton2State = button2State;
     return;
   }
 
-  else if (irTimeCounter < 6*timeStep) {
-    tone(soundPin, NOTE_E3, length);
-  } else if (irTimeCounter < 7*timeStep) {
-    tone(soundPin, NOTE_FS3, length);
-  } else if (irTimeCounter < 8*timeStep) {
-    tone(soundPin, NOTE_GS3, length);
-  } else if (irTimeCounter < 9*timeStep) {
-    tone(soundPin, NOTE_E3, length);
-  } else if (irTimeCounter < 10.5*timeStep) {
-    return;
+  if (segmentTimeCounter > interval*numCombinations) {
+    segmentTimeCounter = 0;
   }
 
-  else if (irTimeCounter < 11*timeStep) {
-    tone(soundPin, NOTE_GS3, length);
-  } else if (irTimeCounter < 12*timeStep) {
-    tone(soundPin, NOTE_E3, length);
-  } else if (irTimeCounter < 13*timeStep) {
-    tone(soundPin, NOTE_FS3, length);
-  } else if (irTimeCounter < 14*timeStep) {
-    tone(soundPin, NOTE_B2, length);
-  } else if (irTimeCounter < 15.5*timeStep) {
-    return;
-  }
+  digitalWrite(latchPin, LOW);
+  int numberToDisplay = segmentTimeCounter / interval;
 
-  else if (irTimeCounter < 16*timeStep) {
-    tone(soundPin, NOTE_B2, length);
-  } else if (irTimeCounter < 17*timeStep) {
-    tone(soundPin, NOTE_FS3, length);
-  } else if (irTimeCounter < 18*timeStep) {
-    tone(soundPin, NOTE_GS3, length);
-  } else if (irTimeCounter < 19*timeStep) {
-    tone(soundPin, NOTE_E3, length);
-  } else if (irTimeCounter < 20.5*timeStep) {
-    return;
-  }
+  shiftOut(dataPin, clockPin, MSBFIRST, numberToDisplay);
+  digitalWrite(latchPin, HIGH);
 }
 
