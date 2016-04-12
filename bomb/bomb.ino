@@ -18,6 +18,8 @@ int buttonPushCounter = 0;
 int timeStep = 700;
 unsigned long prevTimeStamp = millis();
 unsigned long timeCounter = 0;
+unsigned long prevIrTimeStamp = millis();
+unsigned long irTimeCounter = 0;
 
 void setup() {
   pinMode(ledPin, OUTPUT);
@@ -38,8 +40,6 @@ void loop() {
 
   updateTimeCounter();
   updateRgbLeds();
-
-  irRead();
 
   sound();
 
@@ -148,7 +148,7 @@ void setRgbLeds(rgb_leg_state state) {
   }
 }
 
-void irRead()
+bool irRead()
 {
   int loopCount = 20000;
   int counter = 0;
@@ -157,12 +157,7 @@ void irRead()
     delayMicroseconds(1);
   }
 
-  if (counter < loopCount) {
-    digitalWrite(irIndicatorLedPin, HIGH);
-    Serial.println(counter);
-  } else {
-    digitalWrite(irIndicatorLedPin, LOW);
-  }
+  return counter < loopCount;
   
   /*int halfPeriod = 13; //one period at 38.5khZ is aproximately 26 microseconds
   int cycles = 38; //26 microseconds * 38 is more or less 1 millisecond
@@ -178,23 +173,70 @@ void irRead()
 }
 
 void sound() {
-  if (timeCounter < timeStep) {
-    //tone(soundPin, 440, timeStep);
+
+  unsigned long now = millis();
+  
+  if (irRead()) {
+    irTimeCounter = irTimeCounter + now - prevIrTimeStamp;
+    prevIrTimeStamp = now;
+  } else {
+    prevIrTimeStamp = now;
+    irTimeCounter = 0;
+    return;
   }
-  if (timeCounter < timeStep) {
-    tone(soundPin, NOTE_A3, timeStep);
-  } else if (timeCounter < 2*timeStep) {
-    tone(soundPin, NOTE_A4, timeStep);
-  } else if (timeCounter < 3*timeStep) {
-    tone(soundPin, NOTE_C4, timeStep);
-  } else if (timeCounter < 4*timeStep) {
-    tone(soundPin, NOTE_F4, timeStep);
-  } else if (timeCounter < 5*timeStep) {
-    tone(soundPin, NOTE_E4, timeStep);
-  } else if (timeCounter < 6*timeStep) {
-    tone(soundPin, NOTE_E3, timeStep);
-  } else if (timeCounter < 7*timeStep) {
-    tone(soundPin, NOTE_A3, timeStep);
-  } 
+  
+  //Serial.println(irTimeCounter);
+  /*if (timeCounter < timeStep) {
+    //tone(soundPin, 440, timeStep);
+  }*/
+
+  int length = 100;
+  if (irTimeCounter < 1 * timeStep) {
+    tone(soundPin, NOTE_E3, length);
+  } else if (irTimeCounter < 2*timeStep) {
+    tone(soundPin, NOTE_GS3, length);
+  } else if (irTimeCounter < 3*timeStep) {
+    tone(soundPin, NOTE_FS3, length);
+  } else if (irTimeCounter < 4*timeStep) {
+    tone(soundPin, NOTE_B2, length);
+  } else if (irTimeCounter < 5.5*timeStep) {
+    return;
+  }
+
+  else if (irTimeCounter < 6*timeStep) {
+    tone(soundPin, NOTE_E3, length);
+  } else if (irTimeCounter < 7*timeStep) {
+    tone(soundPin, NOTE_FS3, length);
+  } else if (irTimeCounter < 8*timeStep) {
+    tone(soundPin, NOTE_GS3, length);
+  } else if (irTimeCounter < 9*timeStep) {
+    tone(soundPin, NOTE_E3, length);
+  } else if (irTimeCounter < 10.5*timeStep) {
+    return;
+  }
+
+  else if (irTimeCounter < 11*timeStep) {
+    tone(soundPin, NOTE_GS3, length);
+  } else if (irTimeCounter < 12*timeStep) {
+    tone(soundPin, NOTE_E3, length);
+  } else if (irTimeCounter < 13*timeStep) {
+    tone(soundPin, NOTE_FS3, length);
+  } else if (irTimeCounter < 14*timeStep) {
+    tone(soundPin, NOTE_B2, length);
+  } else if (irTimeCounter < 15.5*timeStep) {
+    return;
+  }
+
+  else if (irTimeCounter < 16*timeStep) {
+    tone(soundPin, NOTE_B2, length);
+  } else if (irTimeCounter < 17*timeStep) {
+    tone(soundPin, NOTE_FS3, length);
+  } else if (irTimeCounter < 18*timeStep) {
+    tone(soundPin, NOTE_GS3, length);
+  } else if (irTimeCounter < 19*timeStep) {
+    tone(soundPin, NOTE_E3, length);
+  } else if (irTimeCounter < 20.5*timeStep) {
+    return;
+  }
 }
 
