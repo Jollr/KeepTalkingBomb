@@ -2,12 +2,16 @@
 
 //7-segment constants
 typedef enum {ZERO, ONE, TWO, THREE, FOUR, FIVE, SIX, SEVEN, EIGHT, NINE, A, E} sevenSegmentValue;
+typedef enum {ALL_OFF, RED, BLUE, YELLOW, RED_AND_BLUE, RED_AND_YELLOW, BLUE_AND_YELLOW, ALL_ON} ledMode;
 
 // input pins
 const int potentioMeterPin = A0;
 
 // output pins
 const int speakerPin = 6;
+const int redLedPin = 3;
+const int blueLedPin = 2;
+const int yellowLedPin = 4;
 
 // 595 controlling 7-segment
 const int latchPin = 8;
@@ -21,15 +25,47 @@ void setup() {
   pinMode(dataPin, OUTPUT);  
   pinMode(clockPin, OUTPUT);
   pinMode(speakerPin, OUTPUT);
+  pinMode(redLedPin, OUTPUT);
+  pinMode(blueLedPin, OUTPUT);
+  pinMode(yellowLedPin, OUTPUT);
 }
 
 void loop() {
   int val = analogRead(potentioMeterPin);  
 
   Serial.println(val);
+
+  
+  pinMode(redLedPin, OUTPUT);
+  pinMode(blueLedPin, OUTPUT);
+  pinMode(yellowLedPin, OUTPUT);
+
+  updateLeds();
   update7Segment();
   //sound();
   delay(20);
+}
+
+void updateLeds() {
+  writeToLeds(ALL_ON);
+  
+}
+
+void writeToLeds(ledMode mode) {
+  digitalWrite(yellowLedPin, LOW);
+  digitalWrite(redLedPin, LOW);
+  digitalWrite(blueLedPin, LOW);
+  
+  //typedef enum {ALL_OFF, RED, BLUE, YELLOW, RED_AND_BLUE, RED_AND_YELLOW, BLUE_AND_YELLOW, ALL_ON} ledMode;
+  switch(mode) {
+    case RED: digitalWrite(redLedPin, HIGH); break;
+    case BLUE: digitalWrite(blueLedPin, HIGH); break;
+    case YELLOW: digitalWrite(yellowLedPin, HIGH); break;
+    case RED_AND_BLUE: digitalWrite(redLedPin, HIGH); digitalWrite(blueLedPin, HIGH); break;
+    case RED_AND_YELLOW: digitalWrite(redLedPin, HIGH); digitalWrite(yellowLedPin, HIGH); break;
+    case BLUE_AND_YELLOW: digitalWrite(blueLedPin, HIGH); digitalWrite(yellowLedPin, HIGH); break;
+    case ALL_ON: digitalWrite(redLedPin, HIGH); digitalWrite(blueLedPin, HIGH); digitalWrite(yellowLedPin, HIGH); break;
+  }
 }
 
 void update7Segment() {
