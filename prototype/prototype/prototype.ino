@@ -6,6 +6,8 @@ typedef enum {ALL_OFF, RED, BLUE, YELLOW, RED_AND_BLUE, RED_AND_YELLOW, BLUE_AND
 
 // input pins
 const int potentioMeterPin = A0;
+const int button1Pin = 10;
+const int button2Pin = 11;
 
 // output pins
 const int speakerPin = 6;
@@ -21,6 +23,9 @@ const int clockPin = 9;
 void setup() {
   Serial.begin(9600);
 
+  pinMode(button1Pin, INPUT);
+  pinMode(button2Pin, INPUT);
+
   pinMode(latchPin, OUTPUT);
   pinMode(dataPin, OUTPUT);  
   pinMode(clockPin, OUTPUT);
@@ -33,12 +38,7 @@ void setup() {
 void loop() {
   int val = analogRead(potentioMeterPin);  
 
-  Serial.println(val);
-
-  
-  pinMode(redLedPin, OUTPUT);
-  pinMode(blueLedPin, OUTPUT);
-  pinMode(yellowLedPin, OUTPUT);
+  //Serial.println(val);
 
   updateLeds();
   update7Segment();
@@ -47,8 +47,20 @@ void loop() {
 }
 
 void updateLeds() {
-  writeToLeds(ALL_ON);
+  //writeToLeds(ALL_ON);
+  digitalWrite(blueLedPin, LOW);
+
+  if (digitalRead(button1Pin)) {
+    digitalWrite(yellowLedPin, HIGH);
+  } else {
+    digitalWrite(yellowLedPin, LOW);
+  }
   
+  if (digitalRead(button2Pin)) {
+    digitalWrite(redLedPin, HIGH);
+  } else {
+    digitalWrite(redLedPin, LOW);
+  }
 }
 
 void writeToLeds(ledMode mode) {
@@ -56,7 +68,6 @@ void writeToLeds(ledMode mode) {
   digitalWrite(redLedPin, LOW);
   digitalWrite(blueLedPin, LOW);
   
-  //typedef enum {ALL_OFF, RED, BLUE, YELLOW, RED_AND_BLUE, RED_AND_YELLOW, BLUE_AND_YELLOW, ALL_ON} ledMode;
   switch(mode) {
     case RED: digitalWrite(redLedPin, HIGH); break;
     case BLUE: digitalWrite(blueLedPin, HIGH); break;
@@ -70,8 +81,9 @@ void writeToLeds(ledMode mode) {
 
 void update7Segment() {
   digitalWrite(latchPin, LOW);
-  int timeStep = (millis() / 500) % 12;
-  int numberToDisplay = get7SegmentOutputValue(timeStep);
+  //int timeStep = (millis() / 500) % 12;
+  int val = 10 * analogRead(potentioMeterPin) / 1024;
+  int numberToDisplay = get7SegmentOutputValue(val);
 
   shiftOut(dataPin, clockPin, MSBFIRST, numberToDisplay);
   digitalWrite(latchPin, HIGH);
