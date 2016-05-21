@@ -1,8 +1,13 @@
+#include "pitches.h"
+
 //7-segment constants
 typedef enum {ZERO, ONE, TWO, THREE, FOUR, FIVE, SIX, SEVEN, EIGHT, NINE, A, E} sevenSegmentValue;
 
 // input pins
 const int potentioMeterPin = A0;
+
+// output pins
+const int speakerPin = 6;
 
 // 595 controlling 7-segment
 const int latchPin = 8;
@@ -15,6 +20,7 @@ void setup() {
   pinMode(latchPin, OUTPUT);
   pinMode(dataPin, OUTPUT);  
   pinMode(clockPin, OUTPUT);
+  pinMode(speakerPin, OUTPUT);
 }
 
 void loop() {
@@ -22,7 +28,8 @@ void loop() {
 
   Serial.println(val);
   update7Segment();
-  delay(10);
+  //sound();
+  delay(20);
 }
 
 void update7Segment() {
@@ -51,4 +58,10 @@ int get7SegmentOutputValue(int logicalValue) {
     default: return 0;
   }
 }
+
+ void sound() {
+  if ( (millis() / 500) % 2 == 0 ) {
+    tone(speakerPin, NOTE_C2, 20);
+  }
+ }
 
