@@ -1,15 +1,25 @@
 #include "pitches.h"
 
 //7-segment constants
-//typedef enum {ZERO, ONE, TWO, THREE, FOUR, FIVE, SIX, SEVEN, EIGHT, NINE, A, E} sevenSegmentValue;
-//typedef enum {ALL_OFF, RED, BLUE, YELLOW, RED_AND_BLUE, RED_AND_YELLOW, BLUE_AND_YELLOW, ALL_ON} ledMode;
 
 // input pins
 const int numAnalogPins = 4;
 const int analogPins[numAnalogPins] = { A0, A1, A2, A3 };
+const int numButtonPins = 4;
+const int buttonPins[numButtonPins] = { 2, 3, 4 };
+const int numSwitchPins = 3;
+const int switchPins[numSwitchPins] = { 5, 6, 7 };
+const int numWirePins = 2;
+const int wirePins[numWirePins] = { 9, 10 };
+int analogReads[numAnalogPins];
+int buttonReads[numButtonPins];
+int switchReads[numSwitchPins];
+bool wireCuts[numWirePins] = {false, false};
 
 // output pins
-const int speakerPin = 4;
+const int speakerPin = 8;
+const int numLedValues = 8;
+int ledWrites[numLedValues] = {LOW};
 
 // 595 controlling 7-segment
 const int latchPin = 11;
@@ -17,11 +27,19 @@ const int dataPin = 12;
 const int clockPin = 13;
 
 // bomb state
-int analogReads[numAnalogPins];
+// todo
 
 void setup() {
   Serial.begin(9600);
 
+  for (int n = 0; n < numButtonPins; n++) {
+    pinMode(buttonPins[n], OUTPUT);
+  }
+
+  for (int n = 0; n < numSwitchPins; n++) {
+    pinMode(switchPins[n], OUTPUT);
+  }
+  
   pinMode(latchPin, OUTPUT);
   pinMode(dataPin, OUTPUT);  
   pinMode(clockPin, OUTPUT);
@@ -29,14 +47,41 @@ void setup() {
 }
 
 void loop() {
-  //Serial.println(val);
+  readInputs();
+  gameLogic();
+  writeOutputs();
+}
 
-  readAnalogInputs();
+void gameLogic() {
+  //int analogReads[numAnalogPins];
+  //int buttonReads[numButtonPins];
+  //int switchReads[numSwitchPins];
+  //int ledWrites[numLedValues] = {LOW};
 
-  for (int n = 0; n < 256; n++) {
-    writeTo595(n);
-    delay(50);
+  if (wireCuts[0]) {
+    ledWrites[0] = HIGH;
+  } else {
+    ledWrites[0] = LOW;
   }
+
+  if (wireCuts[1]) {
+    ledWrites[1] = HIGH;
+  } else {
+    ledWrites[1] = LOW;
+  }
+
+  /*ledWrites[0] = buttonReads[0];
+  ledWrites[1] = buttonReads[1];
+  ledWrites[2] = buttonReads[2];
+  ledWrites[3] = switchReads[0];
+  ledWrites[4] = switchReads[1];
+  ledWrites[5] = switchReads[2];*/
+}
+
+void readInputs() {
+  readDigitalInputs();
+  readAnalogInputs();
+  readWireCuts();
 }
 
 void readAnalogInputs() {
@@ -48,6 +93,39 @@ void readAnalogInputs() {
       analogReads[n] = newInput;
     }
   }
+}
+
+void readDigitalInputs() {
+  for (int n = 0; n < numButtonPins; n++) {
+    buttonReads[n] = digitalRead(buttonPins[n]);
+  }
+
+  for (int n = 0; n < numSwitchPins; n++) {
+    switchReads[n] = digitalRead(switchPins[n]);
+  }
+}
+
+void readWireCuts() {
+  for (int n = 0; n < numWirePins; n++) {
+    wireCuts[n] = digitalRead(wirePins[n]) == LOW;
+  }
+}
+
+void writeOutputs() {
+  writeLeds();
+}
+
+void writeLeds() {
+  int writeValue = 0;
+  for (int n = 0; n < numLedValues; n++) {
+    writeValue = writeValue * 2;
+    
+    if (ledWrites[n] == HIGH) {
+      writeValue++;
+    }
+  }
+
+  writeTo595(writeValue);
 }
 
 void writeTo595(int value) {
