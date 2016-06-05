@@ -1,69 +1,68 @@
 #include "pitches.h"
 
 //7-segment constants
-typedef enum {ZERO, ONE, TWO, THREE, FOUR, FIVE, SIX, SEVEN, EIGHT, NINE, A, E} sevenSegmentValue;
-typedef enum {ALL_OFF, RED, BLUE, YELLOW, RED_AND_BLUE, RED_AND_YELLOW, BLUE_AND_YELLOW, ALL_ON} ledMode;
+//typedef enum {ZERO, ONE, TWO, THREE, FOUR, FIVE, SIX, SEVEN, EIGHT, NINE, A, E} sevenSegmentValue;
+//typedef enum {ALL_OFF, RED, BLUE, YELLOW, RED_AND_BLUE, RED_AND_YELLOW, BLUE_AND_YELLOW, ALL_ON} ledMode;
 
 // input pins
-const int potentioMeterPin = A0;
-const int button1Pin = 10;
-const int button2Pin = 11;
+const int numAnalogPins = 4;
+const int analogPins[numAnalogPins] = { A0, A1, A2, A3 };
 
 // output pins
-const int speakerPin = 6;
-const int redLedPin = 3;
-const int blueLedPin = 2;
-const int yellowLedPin = 4;
+const int speakerPin = 4;
 
 // 595 controlling 7-segment
-const int latchPin = 8;
-const int dataPin = 7;
-const int clockPin = 9;
+const int latchPin = 11;
+const int dataPin = 12;
+const int clockPin = 13;
+
+// bomb state
+int analogReads[numAnalogPins];
 
 void setup() {
   Serial.begin(9600);
-
-  pinMode(button1Pin, INPUT);
-  pinMode(button2Pin, INPUT);
 
   pinMode(latchPin, OUTPUT);
   pinMode(dataPin, OUTPUT);  
   pinMode(clockPin, OUTPUT);
   pinMode(speakerPin, OUTPUT);
-  pinMode(redLedPin, OUTPUT);
-  pinMode(blueLedPin, OUTPUT);
-  pinMode(yellowLedPin, OUTPUT);
 }
 
 void loop() {
-  int val = analogRead(potentioMeterPin);  
-
   //Serial.println(val);
 
-  updateLeds();
-  update7Segment();
-  //sound();
-  delay(20);
-}
+  readAnalogInputs();
 
-void updateLeds() {
-  //writeToLeds(ALL_ON);
-  digitalWrite(blueLedPin, LOW);
-
-  if (digitalRead(button1Pin)) {
-    digitalWrite(yellowLedPin, HIGH);
-  } else {
-    digitalWrite(yellowLedPin, LOW);
-  }
-  
-  if (digitalRead(button2Pin)) {
-    digitalWrite(redLedPin, HIGH);
-  } else {
-    digitalWrite(redLedPin, LOW);
+  for (int n = 0; n < 256; n++) {
+    writeTo595(n);
+    delay(50);
   }
 }
 
-void writeToLeds(ledMode mode) {
+void readAnalogInputs() {
+  for (int n = 0; n < numAnalogPins; n++) {
+    int newInput = analogRead(analogPins[n]);
+
+    if (abs(analogReads[n] - newInput) > 3) {
+      Serial.println(newInput);
+      analogReads[n] = newInput;
+    }
+  }
+}
+
+void writeTo595(int value) {
+  digitalWrite(latchPin, LOW);
+  shiftOut(dataPin, clockPin, MSBFIRST, value);
+  digitalWrite(latchPin, HIGH);
+}
+
+ void sound() {
+  if ( (millis() / 500) % 2 == 0 ) {
+    tone(speakerPin, NOTE_C2, 20);
+  }
+ }
+
+/* void writeToLeds(ledMode mode) {
   digitalWrite(yellowLedPin, LOW);
   digitalWrite(redLedPin, LOW);
   digitalWrite(blueLedPin, LOW);
@@ -77,9 +76,9 @@ void writeToLeds(ledMode mode) {
     case BLUE_AND_YELLOW: digitalWrite(blueLedPin, HIGH); digitalWrite(yellowLedPin, HIGH); break;
     case ALL_ON: digitalWrite(redLedPin, HIGH); digitalWrite(blueLedPin, HIGH); digitalWrite(yellowLedPin, HIGH); break;
   }
-}
+}*/
 
-void update7Segment() {
+/*void update7Segment() {
   digitalWrite(latchPin, LOW);
   //int timeStep = (millis() / 500) % 12;
   int val = 10 * analogRead(potentioMeterPin) / 1024;
@@ -87,9 +86,9 @@ void update7Segment() {
 
   shiftOut(dataPin, clockPin, MSBFIRST, numberToDisplay);
   digitalWrite(latchPin, HIGH);
-}
+}*/
 
-int get7SegmentOutputValue(int logicalValue) {
+/*int get7SegmentOutputValue(int logicalValue) {
   switch(logicalValue) {
     case ZERO: return 64+32+16+8+4+2; break;
     case ONE: return 16+2; break;
@@ -105,11 +104,6 @@ int get7SegmentOutputValue(int logicalValue) {
     case E: return 128+64+32+8+4; break;
     default: return 0;
   }
-}
+}*/
 
- void sound() {
-  if ( (millis() / 500) % 2 == 0 ) {
-    tone(speakerPin, NOTE_C2, 20);
-  }
- }
 
