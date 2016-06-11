@@ -1,7 +1,7 @@
 #include "pitches.h"
 
 enum digitalTransition { SAME, LOW_TO_HIGH, HIGH_TO_LOW };
-
+bool logging = true;
 // inputs
 const int numAnalogPins = 4;
 const int analogPins[numAnalogPins] = { A0, A1, A2, A3 };
@@ -50,6 +50,10 @@ void setup() {
   pinMode(dataPin, OUTPUT);  
   pinMode(clockPin, OUTPUT);
   pinMode(speakerPin, OUTPUT);
+
+  logging = false;
+  readInputs();
+  logging = true;
 }
 
 void loop() {
@@ -175,13 +179,13 @@ nextState = DISARMED;
   }
 
   if (buttonTransitions[0] == LOW_TO_HIGH || buttonTransitions[1] == LOW_TO_HIGH) {
-    Serial.println("button transitions");
+    log("button transitions", true);
     nextState = DEAD;
     return;
   }
   
   if (buttonTransitions[2] == LOW_TO_HIGH) {
-    Serial.println("button flag on");
+    log("button flag on", true);
     morseButtonFlag = true;
   }
   
@@ -190,13 +194,13 @@ nextState = DISARMED;
   }
 
   if (switchReads[0] == LOW || switchReads[2] == LOW) {
-    Serial.println("switch low");
+    log("switch low", true);
     nextState = DEAD;
     return;
   }
 
   if (analogReads[0] < 512 || analogReads[0] > 1024 * 3 / 4) {
-    Serial.println("wrong analog value");
+    log("wrong analog value", true);
     nextState = DEAD;
     return;
   } 
@@ -269,7 +273,7 @@ void readAnalogInputs() {
     int newInput = analogRead(analogPins[n]);
 
     if (abs(analogReads[n] - newInput) > 3) {
-      Serial.println(newInput);
+      log(newInput, true);
       analogReads[n] = newInput;
     }
   }
@@ -282,15 +286,15 @@ void readDigitalInputs() {
       
     if (newRead != buttonReads[n]) {
       if (newRead == HIGH) {
-        Serial.print("button ");
-        Serial.print(n);
-        Serial.println(" low to high");
+        log("button ", false);
+        log(n, false);
+        log(" low to high", true);
       }
       else {
         buttonTransitions[n] = HIGH_TO_LOW;
-        Serial.print("button ");
-        Serial.print(n);
-        Serial.println(" high to low");
+        log("button ", false);
+        log(n, false);
+        log(" high to low", true);
       }
     }
     else {
@@ -302,19 +306,20 @@ void readDigitalInputs() {
 
   for (int n = 0; n < numSwitchPins; n++) {
     int newRead = digitalRead(switchPins[n]);
-
-    if (newRead != switchPins[n]) {
+   
+    if (newRead != switchReads[n]) {
       if (newRead == HIGH) {
         switchTransitions[n] = LOW_TO_HIGH;
-        Serial.print("switch ");
-        Serial.print(n);
-        Serial.println(" low to high");
+        
+        log("switch ", false);
+        log(n, false);
+        log(" low to high", true);
       }
       else {
         switchTransitions[n] = HIGH_TO_LOW;
-        Serial.print("switch ");
-        Serial.print(n);
-        Serial.println(" high to low");
+        log("switch ", false);
+        log(n, false);
+        log(" high to low", true);
       }
     }
     else {
@@ -383,48 +388,16 @@ void stopSound() {
   digitalWrite(speakerPin, LOW);
 }
 
-/* void writeToLeds(ledMode mode) {
-  digitalWrite(yellowLedPin, LOW);
-  digitalWrite(redLedPin, LOW);
-  digitalWrite(blueLedPin, LOW);
-  
-  switch(mode) {
-    case RED: digitalWrite(redLedPin, HIGH); break;
-    case BLUE: digitalWrite(blueLedPin, HIGH); break;
-    case YELLOW: digitalWrite(yellowLedPin, HIGH); break;
-    case RED_AND_BLUE: digitalWrite(redLedPin, HIGH); digitalWrite(blueLedPin, HIGH); break;
-    case RED_AND_YELLOW: digitalWrite(redLedPin, HIGH); digitalWrite(yellowLedPin, HIGH); break;
-    case BLUE_AND_YELLOW: digitalWrite(blueLedPin, HIGH); digitalWrite(yellowLedPin, HIGH); break;
-    case ALL_ON: digitalWrite(redLedPin, HIGH); digitalWrite(blueLedPin, HIGH); digitalWrite(yellowLedPin, HIGH); break;
+void log(char* message, bool endLine) {
+  if (logging) {
+    Serial.print(message);
+    if (endLine) Serial.println("");
   }
-}*/
+}
 
-/*void update7Segment() {
-  digitalWrite(latchPin, LOW);
-  //int timeStep = (millis() / 500) % 12;
-  int val = 10 * analogRead(potentioMeterPin) / 1024;
-  int numberToDisplay = get7SegmentOutputValue(val);
-
-  shiftOut(dataPin, clockPin, MSBFIRST, numberToDisplay);
-  digitalWrite(latchPin, HIGH);
-}*/
-
-/*int get7SegmentOutputValue(int logicalValue) {
-  switch(logicalValue) {
-    case ZERO: return 64+32+16+8+4+2; break;
-    case ONE: return 16+2; break;
-    case TWO: return 32+16+128+8+4; break;
-    case THREE: return 32+16+128+2+4; break;
-    case FOUR: return 64+128+16+2; break;
-    case FIVE: return 32+64+128+2+4; break;
-    case SIX: return 32+64+8+4+2+128; break;
-    case SEVEN: return 32+16+2; break;
-    case EIGHT: return 128+64+32+16+8+4+2; break;
-    case NINE: return 128+64+32+16+2+4; break;
-    case A: return 128+64+32+16+2+8; break;
-    case E: return 128+64+32+8+4; break;
-    default: return 0;
+void log(int message, bool endLine) {
+  if (logging) {
+    Serial.print(message);
+    if (endLine) Serial.println("");
   }
-}*/
-
-
+}
