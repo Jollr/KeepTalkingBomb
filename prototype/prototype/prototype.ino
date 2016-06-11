@@ -45,6 +45,10 @@ void setup() {
   for (int n = 0; n < numSwitchPins; n++) {
     pinMode(switchPins[n], INPUT);
   }
+
+  for (int n = 0; n < numWirePins; n++) {
+    pinMode(wirePins[n], INPUT);
+  }
   
   pinMode(latchPin, OUTPUT);
   pinMode(dataPin, OUTPUT);  
@@ -68,16 +72,12 @@ void gameLogic() {
   switch(currentState) {
     case DISARMED: disarmed(); break;
     case DEAD: dead(); break;
-    case SEQ1: test(); break;
+    case SEQ1: seq1(); break;
     case SEQ2: seq2(); break;
     case SEQ3: seq3(); break;
   }
 
   stateTransition();
-}
-
-void test() {
-  return;
 }
 
 void seq1() {
@@ -86,7 +86,7 @@ void seq1() {
     return;
   }
  
-  if (buttonTransitions[1] != LOW_TO_HIGH) return;
+  if (buttonTransitions[1] != HIGH_TO_LOW) return;
   
   if (analogReads[1] / 256 != 0 || analogReads[2] / 256 != 3) {
     nextState = DEAD;
@@ -113,14 +113,14 @@ void seq2() {
 
   int expectedLed = simonSequence[simonButtonCounter];
   if ( 
-       (buttonTransitions[0] == LOW_TO_HIGH && expectedLed == 1) ||
-       (buttonTransitions[1] == LOW_TO_HIGH && expectedLed == 4) ||
-       (buttonTransitions[2] == LOW_TO_HIGH && expectedLed == 6)
+       (buttonTransitions[0] == HIGH_TO_LOW && expectedLed == 1) ||
+       (buttonTransitions[1] == HIGH_TO_LOW && expectedLed == 4) ||
+       (buttonTransitions[2] == HIGH_TO_LOW && expectedLed == 6)
      ) {
     
     simonButtonCounter++;
     
-  } else if (buttonTransitions[0] == LOW_TO_HIGH || buttonTransitions[1] == LOW_TO_HIGH || buttonTransitions[2] == LOW_TO_HIGH) {
+  } else if (buttonTransitions[0] == HIGH_TO_LOW || buttonTransitions[1] == LOW_TO_HIGH || buttonTransitions[2] == LOW_TO_HIGH) {
     nextState = DEAD;
   }
 
@@ -178,13 +178,13 @@ nextState = DISARMED;
     stateTimer = 0;
   }
 
-  if (buttonTransitions[0] == LOW_TO_HIGH || buttonTransitions[1] == LOW_TO_HIGH) {
+  if (buttonTransitions[0] == HIGH_TO_LOW || buttonTransitions[1] == LOW_TO_HIGH) {
     log("button transitions", true);
     nextState = DEAD;
     return;
   }
   
-  if (buttonTransitions[2] == LOW_TO_HIGH) {
+  if (buttonTransitions[2] == HIGH_TO_LOW) {
     log("button flag on", true);
     morseButtonFlag = true;
   }
@@ -279,12 +279,19 @@ void readAnalogInputs() {
   }
 }
 
+unsigned long buttonTransitionTimer[numButtonPins] = {0};
 void readDigitalInputs() { 
   
   for (int n = 0; n < numButtonPins; n++) {
+    if (stateTimer - buttonTransitionTimer[n] < 75) continue;
+
     int newRead = digitalRead(buttonPins[n]);
-      
+    
     if (newRead != buttonReads[n]) {
+      buttonTransitionTimer[n] = stateTimer;
+      log(stateTimer, false);
+      log(" - ", false);
+      
       if (newRead == HIGH) {
         log("button ", false);
         log(n, false);
