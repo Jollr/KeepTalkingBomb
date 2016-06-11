@@ -29,6 +29,8 @@ const int dataPin = 12;
 const int clockPin = 13;
 
 // bomb state
+enum bomb_level { BOMB1, BOMB2, BOMB3 };
+bomb_level bombLevel;
 enum gameState { DISARMED, SEQ1, SEQ2, SEQ3, DEAD };
 gameState currentState = SEQ1;
 gameState nextState = SEQ1;
@@ -36,6 +38,8 @@ unsigned long stateTimer = 0;
 unsigned long prevTimeStamp = millis();
 
 void setup() {
+  bombLevel = BOMB1;
+  
   Serial.begin(9600);
 
   for (int n = 0; n < numButtonPins; n++) {
@@ -72,15 +76,15 @@ void gameLogic() {
   switch(currentState) {
     case DISARMED: disarmed(); break;
     case DEAD: dead(); break;
-    case SEQ1: seq1(); break;
-    case SEQ2: seq2(); break;
-    case SEQ3: seq3(); break;
+    case SEQ1: bomb1Seq1(); break;
+    case SEQ2: bomb1Seq2(); break;
+    case SEQ3: bomb1Seq3(); break;
   }
 
   stateTransition();
 }
 
-void seq1() {
+void bomb1Seq1() {
   if (buttonReads[0] == HIGH || buttonReads[2] == HIGH) {
     nextState = DEAD;
     return;
@@ -100,11 +104,11 @@ void seq1() {
 // simon says
 int simonStepNumber = 0;
 int simonButtonCounter = 0;
-const int simonStepCount = 6;
-const int simonSequence[simonStepCount] = { 1, 4, 1, 6, 4, 4 };
+const int simonStepCount = 5;
+const int simonSequence[simonStepCount] = { 1, 4, 1, 6, 4 };
 byte previousLedPin = 0;
 
-void seq2() {
+void bomb1Seq2() {
   ledWrites[previousLedPin] = LOW;
   int stepInAnimation = stateTimer / 300;
   if (stepInAnimation % 2 == 0 && stepInAnimation <= 2*simonStepNumber) {
@@ -139,6 +143,11 @@ void seq2() {
     nextState = SEQ3;
     log("seq2 -> seq3", true);
   }
+}
+
+void bomb1Seq3() {
+  if (wireCuts[0]) nextState = DEAD;
+  if (wireCuts[1]) nextState = DISARMED;
 }
 
 // morse
@@ -319,6 +328,9 @@ void readDigitalInputs() {
     int newRead = digitalRead(switchPins[n]);
    
     if (newRead != switchReads[n]) {
+      log(stateTimer, false);
+      log(" - ", false);
+      
       if (newRead == HIGH) {
         switchTransitions[n] = LOW_TO_HIGH;
         
@@ -341,9 +353,32 @@ void readDigitalInputs() {
   }
 }
 
+unsigned long wireTransitionTimer[numButtonPins] = {0};
 void readWireCuts() {
   for (int n = 0; n < numWirePins; n++) {
-    wireCuts[n] = digitalRead(wirePins[n]) == LOW;
+    if (stateTimer - wireTransitionTimer[n] < 300) {
+      continue;
+    }
+    
+    bool newRead = digitalRead(wirePins[n]) == LOW;
+    
+    if (newRead != wireCuts[n]) {
+      wireTransitionTimer[n] = stateTimer;
+      log(stateTimer, false);
+      log(" - ", false);
+      
+      if (newRead) {
+        log("wire cut ", false);
+        log(n, false);
+        log(" false to true", true);
+      } else {
+        log("wire cut ", false);
+        log(n, false);
+        log(" true to false", true);
+      }
+    }
+   
+    wireCuts[n] = newRead;
   }
 }
 
