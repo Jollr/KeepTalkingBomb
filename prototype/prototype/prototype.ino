@@ -94,6 +94,7 @@ void seq1() {
   }
 
   nextState = SEQ2;
+  log("seq1 -> seq2", true);
 }
 
 // simon says
@@ -120,7 +121,8 @@ void seq2() {
     
     simonButtonCounter++;
     
-  } else if (buttonTransitions[0] == HIGH_TO_LOW || buttonTransitions[1] == LOW_TO_HIGH || buttonTransitions[2] == LOW_TO_HIGH) {
+  } else if (buttonTransitions[0] == HIGH_TO_LOW || buttonTransitions[1] == HIGH_TO_LOW || buttonTransitions[2] == HIGH_TO_LOW) {
+    log("wrong button pressed", true);    
     nextState = DEAD;
   }
 
@@ -134,7 +136,8 @@ void seq2() {
     simonStepNumber = 0;
     simonButtonCounter = 0;
     previousLedPin = 0;
-    nextState = DISARMED;
+    nextState = SEQ3;
+    log("seq2 -> seq3", true);
   }
 }
 
@@ -159,8 +162,6 @@ const int morseTotalLength = morseKLength + 3 + morseALength + 3 + morseRLength 
 bool morseButtonFlag = false;
 
 void seq3() {
-nextState = DISARMED;
-  
   int morseStep = stateTimer / morseUnitLength;
   
   if (   morseLetter(baseMorseK, morseKLength, 0, morseStep) 
@@ -283,7 +284,10 @@ unsigned long buttonTransitionTimer[numButtonPins] = {0};
 void readDigitalInputs() { 
   
   for (int n = 0; n < numButtonPins; n++) {
-    if (stateTimer - buttonTransitionTimer[n] < 75) continue;
+    if (stateTimer - buttonTransitionTimer[n] < 200) {
+      buttonTransitions[n] = SAME;
+      continue;
+    }
 
     int newRead = digitalRead(buttonPins[n]);
     
