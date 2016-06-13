@@ -38,9 +38,9 @@ unsigned long stateTimer = 0;
 unsigned long prevTimeStamp = millis();
 
 void setup() {
-  bombLevel = BOMB1;
-  
   Serial.begin(9600);
+
+  bombLevel = BOMB2;
 
   for (int n = 0; n < numButtonPins; n++) {
     pinMode(buttonPins[n], INPUT);
@@ -76,9 +76,9 @@ void gameLogic() {
   switch(currentState) {
     case DISARMED: disarmed(); break;
     case DEAD: dead(); break;
-    case SEQ1: bomb1Seq1(); break;
-    case SEQ2: bomb1Seq2(); break;
-    case SEQ3: bomb1Seq3(); break;
+    case SEQ1: seq1(); break;
+    case SEQ2: seq2(); break;
+    case SEQ3: seq3(); break;
   }
 
   stateTransition();
@@ -150,6 +150,36 @@ void bomb1Seq3() {
   if (wireCuts[1]) nextState = DISARMED;
 }
 
+void bomb2Seq1() {
+  bomb2Seq1Logic();
+  bomb2Seq1Morse();
+}
+
+void bomb2Seq1Logic() {
+  if (buttonReads[0] == HIGH || buttonReads[1] == HIGH) {
+    nextState = DEAD;
+    return;
+  }
+ 
+  if (buttonTransitions[2] != HIGH_TO_LOW) return;
+  
+  if (analogReads[0] / 256 != 1 || 
+      analogReads[1] / 256 != 3 ||
+      analogReads[2] / 256 != 3 ||
+      analogReads[3] / 256 != 2) 
+  {
+    log(analogReads[0] / 256, true);
+    log(analogReads[1] / 256, true);
+    log(analogReads[2] / 256, true);
+    log(analogReads[3] / 256, true);
+    nextState = DEAD;
+    return;
+  }
+
+  nextState = SEQ2;
+  log("seq1 -> seq2", true);
+}
+
 // morse
 const int morseALength = 5;
 bool baseMorseA[morseALength] = {true, false, true, true, true};
@@ -161,22 +191,24 @@ const int morseLLength = 10;
 bool baseMorseL[morseLLength] = {true, false, true, true, true, false, true, false, true};
 const int morseMLength = 8;
 bool baseMorseM[morseMLength] = {true, true, true, false, true, true, true};
+const int morseOLength = 11;
+bool baseMorseO[morseOLength] = {true, true, true, false, true, true, true, false, true, true, true};
 const int morseQLength = 17;
 bool baseMorseQ[morseQLength] = {true, true, true, false, true, true, true, false, true, false, true, true, true};
 const int morseRLength = 8;
 bool baseMorseR[morseRLength] = {true, false, true, true, true, false, true};
 
 const int morseUnitLength = 300;
-const int morseTotalLength = morseKLength + 3 + morseALength + 3 + morseRLength + 3 + morseLLength + 17;
+const int morseTotalLength = morseCLength + 3 + morseOLength + 3 + morseLLength + 3 + morseALength + 17;
 bool morseButtonFlag = false;
 
-void seq3() {
+void bomb2Seq1Morse() {
   int morseStep = stateTimer / morseUnitLength;
   
-  if (   morseLetter(baseMorseK, morseKLength, 0, morseStep) 
-      || morseLetter(baseMorseA, morseALength, morseKLength + 3, morseStep)
-      || morseLetter(baseMorseR, morseRLength, morseKLength + morseALength + 2*3, morseStep)
-      || morseLetter(baseMorseL, morseLLength, morseKLength + morseALength + morseKLength + 3*3, morseStep)      
+  if (   morseLetter(baseMorseC, morseCLength, 0, morseStep) 
+      || morseLetter(baseMorseO, morseOLength, morseCLength + 3, morseStep)
+      || morseLetter(baseMorseL, morseLLength, morseCLength + morseOLength + 2*3, morseStep)
+      || morseLetter(baseMorseA, morseALength, morseCLength + morseOLength + morseKLength + 3*3, morseStep)      
   ) {
     playSound();
   }
@@ -186,43 +218,6 @@ void seq3() {
 
   if (morseStep > morseTotalLength) {
     stateTimer = 0;
-  }
-
-  if (buttonTransitions[0] == HIGH_TO_LOW || buttonTransitions[1] == LOW_TO_HIGH) {
-    log("button transitions", true);
-    nextState = DEAD;
-    return;
-  }
-  
-  if (buttonTransitions[2] == HIGH_TO_LOW) {
-    log("button flag on", true);
-    morseButtonFlag = true;
-  }
-  
-  if (!morseButtonFlag) {
-    return;
-  }
-
-  if (switchReads[0] == LOW || switchReads[2] == LOW) {
-    log("switch low", true);
-    nextState = DEAD;
-    return;
-  }
-
-  if (analogReads[0] < 512 || analogReads[0] > 1024 * 3 / 4) {
-    log("wrong analog value", true);
-    nextState = DEAD;
-    return;
-  } 
-
-  if (switchTransitions[1] == HIGH_TO_LOW) {
-    nextState = DEAD;
-    return;
-  }
-  
-  if (switchTransitions[1] == LOW_TO_HIGH) {
-    nextState = DISARMED;
-    return;
   }
 }
 
@@ -234,7 +229,33 @@ bool morseLetter(bool* letter, int arrayLength, int offset, int morseStep) {
   return false;
 }
 
+void bomb2Seq2() {
+  
+}
+
+void bomb2Seq3() {
+  
+}
+
+void bomb3Seq1() {
+  
+}
+
+void bomb3Seq2() {
+  
+}
+
+void bomb3Seq3() {
+  
+}
+
+bool firstDisarmedFrameFlag = true;
 void disarmed() {
+  if (firstDisarmedFrameFlag){
+    log("disarmed", true);
+    firstDisarmedFrameFlag = false;
+  }
+  
   int interval = 500;
   
   for (int n = 0; n < numLedValues; n++) {
@@ -246,7 +267,13 @@ void disarmed() {
   // todo: play sound
 }
 
+bool firstDeadFrameFlag = true;
 void dead() {
+   if (firstDeadFrameFlag){
+    log("dead", true);
+    firstDeadFrameFlag = false;
+  }
+  
   for (int n = 0; n < numLedValues; n++) {
     ledWrites[n] = HIGH;
   }
@@ -270,6 +297,30 @@ void updateStateTimer() {
   unsigned long timeStamp = millis();
   stateTimer = stateTimer + (timeStamp - prevTimeStamp);
   prevTimeStamp = timeStamp;
+}
+
+void seq1() {
+  switch (bombLevel) {
+    case BOMB1: bomb1Seq1(); return;
+    case BOMB2: bomb2Seq1(); return;
+    case BOMB3: bomb3Seq1(); return;
+  }
+}
+
+void seq2() {
+  switch (bombLevel) {
+    case BOMB1: bomb1Seq2(); return;
+    case BOMB2: bomb2Seq2(); return;
+    case BOMB3: bomb3Seq2(); return;
+  }
+}
+
+void seq3() {
+  switch (bombLevel) {
+    case BOMB1: bomb1Seq3(); return;
+    case BOMB2: bomb2Seq3(); return;
+    case BOMB3: bomb3Seq3(); return;
+  }
 }
 
 void readInputs() {
