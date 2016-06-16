@@ -76,7 +76,7 @@ void gameLogic() {
   switch(currentState) {
     case DISARMED: disarmed(); break;
     case DEAD: dead(); break;
-    case SEQ1: seq2(); break;
+    case SEQ1: seq1(); break;
     case SEQ2: seq2(); break;
     case SEQ3: seq3(); break;
   }
@@ -210,7 +210,7 @@ void bomb2Seq1Morse() {
       || morseLetter(baseMorseL, morseLLength, morseCLength + morseOLength + 2*3, morseStep)
       || morseLetter(baseMorseA, morseALength, morseCLength + morseOLength + morseKLength + 3*3, morseStep)      
   ) {
-    //playSound();
+    playSound();
   }
   else {
     stopSound();
@@ -265,8 +265,104 @@ void bomb2Seq2Leds() {
   }
 }
 
+int bomb2Seq3Step = 1;
 void bomb2Seq3() {
+  bomb2Seq3Step1();
+  bomb2Seq3Step2();
+}
+
+void bomb2Seq3Step1() {
+  if (bomb2Seq3Step != 1) return;
+
+  if (buttonTransitions[0] == HIGH_TO_LOW || buttonTransitions[1] == HIGH_TO_LOW || buttonTransitions[2] == HIGH_TO_LOW)
+  {
+    nextState = DEAD; 
+    return;
+  }
+
+  if (buttonReads[0] == HIGH && buttonReads[1] == HIGH && buttonReads[2] == HIGH) {
+    bomb2Seq3Step = 2;
+    stateTimer = 0;
+    return;
+  }
+}
+
+const int bomb2Seq3CombCount = 4;
+int bomb2Seq3CombCounter = 0;
+bool allowedButton1TransitionsPerCombination[numButtonPins][bomb2Seq3CombCount] = {
+  {true, false, false, true},
+  {false, false, false, true},
+  {true, true, false, false}
+};
+
+void bomb2Seq3Step2() {
+  if (bomb2Seq3Step != 2) return;
+
+  bomb2Seq3Presentation();
+  if (buttonTransitions[0] == LOW_TO_HIGH || buttonTransitions[1] == LOW_TO_HIGH || buttonTransitions[2] == LOW_TO_HIGH)
+  {
+    nextState = DEAD; 
+    return;
+  }
+
+  for (int n = 0; n < numButtonPins; n++) {
+    if (buttonTransitions[n] != HIGH_TO_LOW) continue;
+    if (!allowedButton1TransitionsPerCombination[n, bomb2Seq3CombCounter])     {
+      nextState = DEAD;
+      return;
+    }
+  }
+
+  if (buttonReads[0] == LOW && buttonReads[1] == LOW && buttonReads[2] == LOW) {
+    nextState = DISARMED;
+    return;
+  }
+
+  if (stateTimer > 5000) {
+    stateTimer = 0;
+    bomb2Seq3CombCounter++;
+
+    if (bomb2Seq3CombCounter >= bomb2Seq3CombCount) {
+      bomb2Seq3CombCounter = 0;
+    }
+  }
+}
+
+bool bomb2Seq3LedDisplays[3][bomb2Seq3CombCount] = {
+  {false, true, false},
+  {true, true, false},
+  {true, true, false}
+};
+
+void bomb2Seq3Presentation() {
+  for (int n = 0; n < 3; n++) {
+    setBomb2Seq3Led(n, bomb2Seq3LedDisplays[n][bomb2Seq3CombCounter]);
+  }
+}
+
+void setBomb2Seq3Led(int led, bool on) {
+  int value = LOW;
+  if (on) value = HIGH;
   
+  switch(led) {
+    case 0: {
+      ledWrites[0] = value;
+      ledWrites[0] = value;
+      break;
+    }
+    case 1: {
+      ledWrites[2] = value;
+      ledWrites[3] = value;
+      ledWrites[4] = value;
+      break;
+    }
+    case 2: {
+      ledWrites[5] = value;
+      ledWrites[6] = value;
+      ledWrites[7] = value;
+      break;
+    }
+  }
 }
 
 void bomb3Seq1() {
