@@ -76,7 +76,7 @@ void gameLogic() {
   switch(currentState) {
     case DISARMED: disarmed(); break;
     case DEAD: dead(); break;
-    case SEQ1: seq1(); break;
+    case SEQ1: seq2(); break;
     case SEQ2: seq2(); break;
     case SEQ3: seq3(); break;
   }
@@ -210,7 +210,7 @@ void bomb2Seq1Morse() {
       || morseLetter(baseMorseL, morseLLength, morseCLength + morseOLength + 2*3, morseStep)
       || morseLetter(baseMorseA, morseALength, morseCLength + morseOLength + morseKLength + 3*3, morseStep)      
   ) {
-    playSound();
+    //playSound();
   }
   else {
     stopSound();
@@ -230,7 +230,39 @@ bool morseLetter(bool* letter, int arrayLength, int offset, int morseStep) {
 }
 
 void bomb2Seq2() {
+  bomb2Seq2Leds();
+  bomb2Seq2Logic();
+}
+
+void bomb2Seq2Logic() {
+  if (buttonReads[1] == HIGH || buttonReads[2] == HIGH) {
+    nextState = DEAD;
+    return;
+  }
+
+  if (buttonTransitions[0] != HIGH_TO_LOW) return;
   
+  if (switchReads[0] != HIGH || switchReads[1] != HIGH || switchReads[2] != LOW) {
+    nextState = DEAD;
+    return;
+  }
+
+  nextState = SEQ3;
+  log("seq2 -> seq3", true);
+}
+
+void bomb2Seq2Leds() {
+  ledWrites[1] = HIGH;
+  ledWrites[2] = HIGH;
+  ledWrites[5] = HIGH;
+
+  if (stateTimer / 1000 % 2 > 0) {
+    ledWrites[6] = HIGH;
+    ledWrites[7] = HIGH;
+  } else {
+    ledWrites[6] = LOW;
+    ledWrites[7] = LOW;
+  }
 }
 
 void bomb2Seq3() {
