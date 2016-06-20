@@ -1,7 +1,9 @@
 #include "pitches.h"
 
 enum digitalTransition { SAME, LOW_TO_HIGH, HIGH_TO_LOW };
+enum ledColor { YELLOW, RED, BLUE };
 bool logging = true;
+
 // inputs
 const int numAnalogPins = 4;
 const int analogPins[numAnalogPins] = { A0, A1, A2, A3 };
@@ -111,18 +113,21 @@ void bomb1Seq1() {
 int simonStepNumber = 0;
 int simonButtonCounter = 0;
 const int simonStepCount = 5;
-const int simonSequence[simonStepCount] = { 1, 4, 1, 6, 4 };
+//const int simonSequence[simonStepCount] = { 1, 4, 1, 6, 4 };
+const ledColor simonSequence[simonStepCount] = { RED, BLUE, RED, YELLOW, BLUE };
+const int simonLedMap[3] = {6, 1, 4};
+const int simonButtonMap[3] = { 2, 1, 0 };
 byte previousLedPin = 0;
 
 void bomb1Seq2() {
   ledWrites[previousLedPin] = LOW;
   int stepInAnimation = stateTimer / 300;
   if (stepInAnimation % 2 == 0 && stepInAnimation <= 2*simonStepNumber) {
-    previousLedPin = simonSequence[stepInAnimation / 2];
+    previousLedPin = simonLedMap[simonSequence[stepInAnimation / 2]];
     ledWrites[previousLedPin] = HIGH;
   }
 
-  int expectedLed = simonSequence[simonButtonCounter];
+  int expectedLed = simonLedMap[simonSequence[simonButtonCounter]];
   if ( 
        (buttonTransitions[0] == HIGH_TO_LOW && expectedLed == 1) ||
        (buttonTransitions[1] == HIGH_TO_LOW && expectedLed == 4) ||
