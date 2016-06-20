@@ -39,8 +39,15 @@ unsigned long prevTimeStamp = millis();
 
 void setup() {
   Serial.begin(9600);
-
-  bombLevel = BOMB2;
+  
+  bombLevel = BOMB1;
+  currentState = SEQ1;
+  
+  log("begin", true);
+  log("bomb: ", false);
+  log(bombLevel, true);
+  log("state: ", false);
+  log(getStateString(currentState), true);
 
   for (int n = 0; n < numButtonPins; n++) {
     pinMode(buttonPins[n], INPUT);
@@ -98,7 +105,6 @@ void bomb1Seq1() {
   }
 
   nextState = SEQ2;
-  log("seq1 -> seq2", true);
 }
 
 // simon says
@@ -377,13 +383,7 @@ void bomb3Seq3() {
   
 }
 
-bool firstDisarmedFrameFlag = true;
 void disarmed() {
-  if (firstDisarmedFrameFlag){
-    log("disarmed", true);
-    firstDisarmedFrameFlag = false;
-  }
-  
   int interval = 500;
   
   for (int n = 0; n < numLedValues; n++) {
@@ -392,25 +392,23 @@ void disarmed() {
 
   ledWrites[(stateTimer % interval*numLedValues) / interval] = HIGH;
 
-  // todo: play sound
+  // todo: play sound?
 }
 
-bool firstDeadFrameFlag = true;
 void dead() {
-   if (firstDeadFrameFlag){
-    log("dead", true);
-    firstDeadFrameFlag = false;
-  }
-  
   for (int n = 0; n < numLedValues; n++) {
     ledWrites[n] = HIGH;
   }
 
-  // todo: play sound
+  // todo: play sound?
 }
 
 void stateTransition() {
   if (currentState != nextState) {
+    log(getStateString(currentState), false);
+    log(" -> ", false);
+    log(getStateString(nextState), true);
+    
     currentState = nextState;
     morseButtonFlag = false;
     stateTimer = 0;
@@ -418,6 +416,17 @@ void stateTransition() {
     for (int n = 0; n < numLedValues; n++) {
       ledWrites[n] = LOW;
     }
+  }
+}
+
+char* getStateString(gameState state) {
+  switch (state) {
+    case SEQ1: return "seq1";
+    case SEQ2: return "seq2";
+    case SEQ3: return "seq3";
+    case DEAD: return "dead";
+    case DISARMED: return "disarmed";
+    default: log("unknown state", false); log(state, true); return "";
   }
 }
 
