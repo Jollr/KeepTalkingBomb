@@ -32,6 +32,7 @@ const int clockPin = 13;
 
 // bomb state
 enum bomb_level { BOMB1, BOMB2, BOMB3 };
+bool switchFlag = false;
 bomb_level bombLevel;
 enum gameState { DISARMED, SEQ1, SEQ2, SEQ3, DEAD };
 gameState currentState = SEQ1;
@@ -93,39 +94,100 @@ void gameLogic() {
   stateTransition();
 }
 
+bool bomb1Seq1ButtonFlag = false;
 void bomb1Seq1() {
+  requireNoWireCuts();
+  bomb1Seq1SwitchCheck();
+  
+  if (switchFlag) {
+    bomb1Seq1LogicStep();
+  }
+}
+
+void bomb1Seq1SwitchCheck() {
+  if (!switchFlag || bomb1Seq1ButtonFlag) {
+    requireNoButtonPresses();
+  }
+  
+  if (switchTransitions[0] == HIGH_TO_LOW || switchTransitions[1] == HIGH_TO_LOW) {
+    nextState = DEAD;
+  }
+  
+  if (!switchFlag && switchReads[0] == HIGH && switchReads[1] == HIGH && switchReads[2] == HIGH) {
+    log("setting switch flag to true", true);
+    switchFlag = true;
+  }
+
+  if (switchTransitions[2] == HIGH_TO_LOW) {
+    if (bomb1Seq1ButtonFlag) {
+      nextState = SEQ2;
+    } else {
+      nextState = DEAD;
+    }
+  }
+}
+
+void bomb1Seq1LogicStep() {
   if (buttonReads[0] == HIGH || buttonReads[2] == HIGH) {
     nextState = DEAD;
     return;
   }
- 
-  if (buttonTransitions[1] != HIGH_TO_LOW) return;
-  
-  if (analogReads[1] / 256 != 0 || analogReads[2] / 256 != 3) {
-    nextState = DEAD;
-    return;
-  }
 
-  nextState = SEQ2;
+  if (bomb1Seq1ButtonFlag) {
+    if (analogReads[1] / 256 != 0 || analogReads[2] / 256 != 3) {
+      nextState = DEAD;
+    }
+  } 
+  else if (buttonTransitions[1] == HIGH_TO_LOW) {
+    if (analogReads[1] / 256 != 0 || analogReads[2] / 256 != 3) {
+      nextState = DEAD;
+    }
+    
+    bomb1Seq1ButtonFlag = true;
+  }
+}
+
+void bomb1Seq2() {
+  requireNoWireCuts();
+  bomb1Seq2SwitchCheck();
+  
+  if (!switchFlag) {
+    bomb1Seq2LogicStep();  
+  }
+}
+
+void bomb1Seq2SwitchCheck() {
+  if (!switchFlag) {
+    requireNoSwitchTransitions();
+  } else {
+    requireNoButtonPresses();
+  }
+  
+  if (switchTransitions[0] == HIGH_TO_LOW || switchTransitions[2] == LOW_TO_HIGH) {
+    nextState = DEAD;
+  }
+  
+  if (switchFlag && switchTransitions[1] == HIGH_TO_LOW) {
+    nextState = SEQ3;
+  }
 }
 
 // simon says
 int simonStepNumber = 0;
 int simonButtonCounter = 0;
 const int simonStepCount = 5;
-//const int simonSequence[simonStepCount] = { 1, 4, 1, 6, 4 };
 const ledColor simonSequence[simonStepCount] = { RED, BLUE, RED, YELLOW, BLUE };
 const int simonLedMap[3] = {6, 1, 4};
 const int simonButtonMap[3] = { 2, 1, 0 };
 byte previousLedPin = 0;
 
-void bomb1Seq2() {
+void bomb1Seq2LogicStep() {  
   ledWrites[previousLedPin] = LOW;
   int stepInAnimation = stateTimer / 300;
   if (stepInAnimation % 2 == 0 && stepInAnimation <= 2*simonStepNumber) {
     previousLedPin = simonLedMap[simonSequence[stepInAnimation / 2]];
     ledWrites[previousLedPin] = HIGH;
-  }
+  } 
 
   int expectedLed = simonLedMap[simonSequence[simonButtonCounter]];
   if ( 
@@ -151,14 +213,24 @@ void bomb1Seq2() {
     simonStepNumber = 0;
     simonButtonCounter = 0;
     previousLedPin = 0;
-    nextState = SEQ3;
-    log("seq2 -> seq3", true);
+    switchFlag = true;
+    log("setting switch flag to true", true);
   }
 }
 
 void bomb1Seq3() {
+  requireNoButtonPresses();
   if (wireCuts[0]) nextState = DEAD;
-  if (wireCuts[1]) nextState = DISARMED;
+  if (!switchFlag) requireNoSwitchTransitions();
+
+  if (switchTransitions[1] == LOW_TO_HIGH || switchTransitions[2] == LOW_TO_HIGH) {
+    nextState = DEAD;
+  }
+
+  if (switchTransitions[0] == HIGH_TO_LOW) {
+    if (wireCuts[1]) nextState = DISARMED;
+    else nextState = DEAD;
+  }
 }
 
 void bomb2Seq1() {
@@ -188,7 +260,6 @@ void bomb2Seq1Logic() {
   }
 
   nextState = SEQ2;
-  log("seq1 -> seq2", true);
 }
 
 // morse
@@ -259,7 +330,6 @@ void bomb2Seq2Logic() {
   }
 
   nextState = SEQ3;
-  log("seq2 -> seq3", true);
 }
 
 void bomb2Seq2Leds() {
@@ -413,9 +483,11 @@ void stateTransition() {
     log(getStateString(currentState), false);
     log(" -> ", false);
     log(getStateString(nextState), true);
-    
+
+    switchFlag = false;
     currentState = nextState;
     morseButtonFlag = false;
+    
     stateTimer = 0;
     stopSound();
     for (int n = 0; n < numLedValues; n++) {
@@ -465,6 +537,26 @@ void seq3() {
   }
 }
 
+void requireNoButtonPresses() {
+  for (int n = 0; n < numButtonPins; n++) {
+    if (buttonTransitions[n] == LOW_TO_HIGH) {
+      nextState = DEAD;
+    }
+  }
+}
+
+void requireNoSwitchTransitions() {
+  for (int n = 0; n < numSwitchPins; n++) {
+    if (switchTransitions[n] != SAME) nextState = DEAD;
+  }
+}
+
+void requireNoWireCuts() {
+  for (int n = 0; n < numWirePins; n++) {
+    if (wireCuts[n]) nextState = DEAD;
+  }
+}
+
 void readInputs() {
   readDigitalInputs();
   readAnalogInputs();
@@ -484,7 +576,6 @@ void readAnalogInputs() {
 
 unsigned long buttonTransitionTimer[numButtonPins] = {0};
 void readDigitalInputs() { 
-  
   for (int n = 0; n < numButtonPins; n++) {
     if (stateTimer - buttonTransitionTimer[n] < 200) {
       buttonTransitions[n] = SAME;
@@ -499,6 +590,7 @@ void readDigitalInputs() {
       log(" - ", false);
       
       if (newRead == HIGH) {
+        buttonTransitions[n] = LOW_TO_HIGH;
         log("button ", false);
         log(n, false);
         log(" low to high", true);
