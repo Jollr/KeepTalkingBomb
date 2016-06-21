@@ -1,9 +1,7 @@
-#include "pitches.h"
-
 enum digitalTransition { SAME, LOW_TO_HIGH, HIGH_TO_LOW };
 enum ledColor { YELLOW, RED, BLUE };
 bool logging = true;
-asdf
+
 // inputs
 const int numAnalogPins = 4;
 const int analogPins[numAnalogPins] = { A0, A1, A2, A3 };
@@ -31,9 +29,7 @@ const int dataPin = 12;
 const int clockPin = 13;
 
 // bomb state
-enum bomb_level { BOMB1, BOMB2, BOMB3 };
 bool switchFlag = false;
-bomb_level bombLevel;
 enum gameState { DISARMED, SEQ1, SEQ2, SEQ3, DEAD };
 gameState currentState = SEQ1;
 gameState nextState = SEQ1;
@@ -43,12 +39,9 @@ unsigned long prevTimeStamp = millis();
 void setup() {
   Serial.begin(9600);
   
-  bombLevel = BOMB1;
   currentState = SEQ1;
   
   log("begin", true);
-  log("bomb: ", false);
-  log(bombLevel, true);
   log("state: ", false);
   log(getStateString(currentState), true);
 
@@ -94,18 +87,18 @@ void gameLogic() {
   stateTransition();
 }
 
-bool bomb1Seq1ButtonFlag = false;
-void bomb1Seq1() {
+bool seqButtonFlag = false;
+void seq1() {
   requireNoWireCuts();
-  bomb1Seq1SwitchCheck();
+  seq1SwitchCheck();
   
   if (switchFlag) {
-    bomb1Seq1LogicStep();
+    seq1LogicStep();
   }
 }
 
-void bomb1Seq1SwitchCheck() {
-  if (!switchFlag || bomb1Seq1ButtonFlag) {
+void seq1SwitchCheck() {
+  if (!switchFlag || seqButtonFlag) {
     requireNoButtonPresses();
   }
   
@@ -119,7 +112,7 @@ void bomb1Seq1SwitchCheck() {
   }
 
   if (switchTransitions[2] == HIGH_TO_LOW) {
-    if (bomb1Seq1ButtonFlag) {
+    if (seqButtonFlag) {
       nextState = SEQ2;
     } else {
       nextState = DEAD;
@@ -127,13 +120,13 @@ void bomb1Seq1SwitchCheck() {
   }
 }
 
-void bomb1Seq1LogicStep() {
+void seq1LogicStep() {
   if (buttonReads[0] == HIGH || buttonReads[2] == HIGH) {
     nextState = DEAD;
     return;
   }
 
-  if (bomb1Seq1ButtonFlag) {
+  if (seqButtonFlag) {
     if (analogReads[1] / 256 != 0 || analogReads[2] / 256 != 3) {
       nextState = DEAD;
     }
@@ -143,20 +136,20 @@ void bomb1Seq1LogicStep() {
       nextState = DEAD;
     }
     
-    bomb1Seq1ButtonFlag = true;
+    seqButtonFlag = true;
   }
 }
 
-void bomb1Seq2() {
+void seq2() {
   requireNoWireCuts();
-  bomb1Seq2SwitchCheck();
+  seq2SwitchCheck();
   
   if (!switchFlag) {
-    bomb1Seq2LogicStep();  
+    seq2LogicStep();  
   }
 }
 
-void bomb1Seq2SwitchCheck() {
+void seq2SwitchCheck() {
   if (!switchFlag) {
     requireNoSwitchTransitions();
   } else {
@@ -181,7 +174,7 @@ const int simonLedMap[3] = {6, 1, 4};
 const int simonButtonMap[3] = { 2, 1, 0 };
 byte previousLedPin = 0;
 
-void bomb1Seq2LogicStep() {  
+void seq2LogicStep() {  
   ledWrites[previousLedPin] = LOW;
   int stepInAnimation = stateTimer / 300;
   if (stepInAnimation % 2 == 0 && stepInAnimation <= 2*simonStepNumber) {
@@ -218,7 +211,7 @@ void bomb1Seq2LogicStep() {
   }
 }
 
-void bomb1Seq3() {
+void seq3() {
   requireNoButtonPresses();
   if (wireCuts[0]) nextState = DEAD;
   if (!switchFlag) requireNoSwitchTransitions();
@@ -231,231 +224,6 @@ void bomb1Seq3() {
     if (wireCuts[1]) nextState = DISARMED;
     else nextState = DEAD;
   }
-}
-
-void bomb2Seq1() {
-  bomb2Seq1Logic();
-  bomb2Seq1Morse();
-}
-
-void bomb2Seq1Logic() {
-  if (buttonReads[0] == HIGH || buttonReads[1] == HIGH) {
-    nextState = DEAD;
-    return;
-  }
- 
-  if (buttonTransitions[2] != HIGH_TO_LOW) return;
-  
-  if (analogReads[0] / 256 != 1 || 
-      analogReads[1] / 256 != 3 ||
-      analogReads[2] / 256 != 3 ||
-      analogReads[3] / 256 != 2) 
-  {
-    log(analogReads[0] / 256, true);
-    log(analogReads[1] / 256, true);
-    log(analogReads[2] / 256, true);
-    log(analogReads[3] / 256, true);
-    nextState = DEAD;
-    return;
-  }
-
-  nextState = SEQ2;
-}
-
-// morse
-const int morseALength = 5;
-bool baseMorseA[morseALength] = {true, false, true, true, true};
-const int morseCLength = 12;
-bool baseMorseC[morseCLength] = {true, true, true, false, true, false, true, true, true, false, true};
-const int morseKLength = 9;
-bool baseMorseK[morseKLength] = {true, true, true, false, true, false, true, true, true };
-const int morseLLength = 10;
-bool baseMorseL[morseLLength] = {true, false, true, true, true, false, true, false, true};
-const int morseMLength = 8;
-bool baseMorseM[morseMLength] = {true, true, true, false, true, true, true};
-const int morseOLength = 11;
-bool baseMorseO[morseOLength] = {true, true, true, false, true, true, true, false, true, true, true};
-const int morseQLength = 17;
-bool baseMorseQ[morseQLength] = {true, true, true, false, true, true, true, false, true, false, true, true, true};
-const int morseRLength = 8;
-bool baseMorseR[morseRLength] = {true, false, true, true, true, false, true};
-
-const int morseUnitLength = 300;
-const int morseTotalLength = morseCLength + 3 + morseOLength + 3 + morseLLength + 3 + morseALength + 17;
-bool morseButtonFlag = false;
-
-void bomb2Seq1Morse() {
-  int morseStep = stateTimer / morseUnitLength;
-  
-  if (   morseLetter(baseMorseC, morseCLength, 0, morseStep) 
-      || morseLetter(baseMorseO, morseOLength, morseCLength + 3, morseStep)
-      || morseLetter(baseMorseL, morseLLength, morseCLength + morseOLength + 2*3, morseStep)
-      || morseLetter(baseMorseA, morseALength, morseCLength + morseOLength + morseKLength + 3*3, morseStep)      
-  ) {
-    playSound();
-  }
-  else {
-    stopSound();
-  }
-
-  if (morseStep > morseTotalLength) {
-    stateTimer = 0;
-  }
-}
-
-bool morseLetter(bool* letter, int arrayLength, int offset, int morseStep) {
-  if (morseStep >= offset && morseStep < offset + arrayLength) {
-    return letter[morseStep - offset];
-  }
-
-  return false;
-}
-
-void bomb2Seq2() {
-  bomb2Seq2Leds();
-  bomb2Seq2Logic();
-}
-
-void bomb2Seq2Logic() {
-  if (buttonReads[1] == HIGH || buttonReads[2] == HIGH) {
-    nextState = DEAD;
-    return;
-  }
-
-  if (buttonTransitions[0] != HIGH_TO_LOW) return;
-  
-  if (switchReads[0] != HIGH || switchReads[1] != HIGH || switchReads[2] != LOW) {
-    nextState = DEAD;
-    return;
-  }
-
-  nextState = SEQ3;
-}
-
-void bomb2Seq2Leds() {
-  ledWrites[1] = HIGH;
-  ledWrites[2] = HIGH;
-  ledWrites[5] = HIGH;
-
-  if (stateTimer / 1000 % 2 > 0) {
-    ledWrites[6] = HIGH;
-    ledWrites[7] = HIGH;
-  } else {
-    ledWrites[6] = LOW;
-    ledWrites[7] = LOW;
-  }
-}
-
-int bomb2Seq3Step = 1;
-void bomb2Seq3() {
-  bomb2Seq3Step1();
-  bomb2Seq3Step2();
-}
-
-void bomb2Seq3Step1() {
-  if (bomb2Seq3Step != 1) return;
-
-  if (buttonTransitions[0] == HIGH_TO_LOW || buttonTransitions[1] == HIGH_TO_LOW || buttonTransitions[2] == HIGH_TO_LOW)
-  {
-    nextState = DEAD; 
-    return;
-  }
-
-  if (buttonReads[0] == HIGH && buttonReads[1] == HIGH && buttonReads[2] == HIGH) {
-    bomb2Seq3Step = 2;
-    stateTimer = 0;
-    return;
-  }
-}
-
-const int bomb2Seq3CombCount = 4;
-int bomb2Seq3CombCounter = 0;
-bool allowedButton1TransitionsPerCombination[numButtonPins][bomb2Seq3CombCount] = {
-  {true, false, false, true},
-  {false, false, false, true},
-  {true, true, false, false}
-};
-
-void bomb2Seq3Step2() {
-  if (bomb2Seq3Step != 2) return;
-
-  bomb2Seq3Presentation();
-  if (buttonTransitions[0] == LOW_TO_HIGH || buttonTransitions[1] == LOW_TO_HIGH || buttonTransitions[2] == LOW_TO_HIGH)
-  {
-    nextState = DEAD; 
-    return;
-  }
-
-  for (int n = 0; n < numButtonPins; n++) {
-    if (buttonTransitions[n] != HIGH_TO_LOW) continue;
-    if (!allowedButton1TransitionsPerCombination[n, bomb2Seq3CombCounter])     {
-      nextState = DEAD;
-      return;
-    }
-  }
-
-  if (buttonReads[0] == LOW && buttonReads[1] == LOW && buttonReads[2] == LOW) {
-    nextState = DISARMED;
-    return;
-  }
-
-  if (stateTimer > 5000) {
-    stateTimer = 0;
-    bomb2Seq3CombCounter++;
-
-    if (bomb2Seq3CombCounter >= bomb2Seq3CombCount) {
-      bomb2Seq3CombCounter = 0;
-    }
-  }
-}
-
-bool bomb2Seq3LedDisplays[3][bomb2Seq3CombCount] = {
-  {false, true, false},
-  {true, true, false},
-  {true, true, false}
-};
-
-void bomb2Seq3Presentation() {
-  for (int n = 0; n < 3; n++) {
-    setBomb2Seq3Led(n, bomb2Seq3LedDisplays[n][bomb2Seq3CombCounter]);
-  }
-}
-
-void setBomb2Seq3Led(int led, bool on) {
-  int value = LOW;
-  if (on) value = HIGH;
-  
-  switch(led) {
-    case 0: {
-      ledWrites[0] = value;
-      ledWrites[0] = value;
-      break;
-    }
-    case 1: {
-      ledWrites[2] = value;
-      ledWrites[3] = value;
-      ledWrites[4] = value;
-      break;
-    }
-    case 2: {
-      ledWrites[5] = value;
-      ledWrites[6] = value;
-      ledWrites[7] = value;
-      break;
-    }
-  }
-}
-
-void bomb3Seq1() {
-  
-}
-
-void bomb3Seq2() {
-  
-}
-
-void bomb3Seq3() {
-  
 }
 
 void disarmed() {
@@ -486,7 +254,6 @@ void stateTransition() {
 
     switchFlag = false;
     currentState = nextState;
-    morseButtonFlag = false;
     
     stateTimer = 0;
     stopSound();
@@ -511,30 +278,6 @@ void updateStateTimer() {
   unsigned long timeStamp = millis();
   stateTimer = stateTimer + (timeStamp - prevTimeStamp);
   prevTimeStamp = timeStamp;
-}
-
-void seq1() {
-  switch (bombLevel) {
-    case BOMB1: bomb1Seq1(); return;
-    case BOMB2: bomb2Seq1(); return;
-    case BOMB3: bomb3Seq1(); return;
-  }
-}
-
-void seq2() {
-  switch (bombLevel) {
-    case BOMB1: bomb1Seq2(); return;
-    case BOMB2: bomb2Seq2(); return;
-    case BOMB3: bomb3Seq2(); return;
-  }
-}
-
-void seq3() {
-  switch (bombLevel) {
-    case BOMB1: bomb1Seq3(); return;
-    case BOMB2: bomb2Seq3(); return;
-    case BOMB3: bomb3Seq3(); return;
-  }
 }
 
 void requireNoButtonPresses() {
@@ -710,7 +453,7 @@ void playSound() {
 
   playingSound = true;
   soundStartTime = micros();
-  soundPeriod = 1000000 / NOTE_G3; // microseconds
+  soundPeriod = 1000000 / 196; // microseconds
 }
 
 void stopSound() {
