@@ -32,7 +32,7 @@ const int clockPin = 13;
 bool switchFlag = false;
 enum gameState { DISARMED, SEQ1, SEQ2, SEQ3, DEAD };
 gameState currentState = SEQ1;
-gameState nextState = SEQ3;
+gameState nextState = SEQ1;
 unsigned long stateTimer = 0;
 unsigned long prevTimeStamp = millis();
 
