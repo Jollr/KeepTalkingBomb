@@ -88,15 +88,223 @@ void gameLogic() {
 }
 
 void seq1() {
+  requireNoSwitchTransitions();
+  requireNoWireCuts();
+  seq1Logic();
+  seq1Morse();
+}
+
+void seq1Logic() {
+  if (buttonReads[0] == HIGH || buttonReads[1] == HIGH) {
+    nextState = DEAD;
+    return;
+  }
  
+  if (buttonTransitions[2] != HIGH_TO_LOW) return;
+  
+  if (analogReads[0] / 256 != 1 || 
+      analogReads[1] / 256 != 3 ||
+      analogReads[2] / 256 != 3 ||
+      analogReads[3] / 256 != 2) 
+  {
+    log(analogReads[0] / 256, true);
+    log(analogReads[1] / 256, true);
+    log(analogReads[2] / 256, true);
+    log(analogReads[3] / 256, true);
+    nextState = DEAD;
+    return;
+  }
+
+  nextState = SEQ2;
+}
+
+// morse
+const int morseALength = 5;
+bool baseMorseA[morseALength] = {true, false, true, true, true};
+const int morseCLength = 12;
+bool baseMorseC[morseCLength] = {true, true, true, false, true, false, true, true, true, false, true};
+const int morseKLength = 9;
+bool baseMorseK[morseKLength] = {true, true, true, false, true, false, true, true, true };
+const int morseLLength = 10;
+bool baseMorseL[morseLLength] = {true, false, true, true, true, false, true, false, true};
+const int morseMLength = 8;
+bool baseMorseM[morseMLength] = {true, true, true, false, true, true, true};
+const int morseOLength = 11;
+bool baseMorseO[morseOLength] = {true, true, true, false, true, true, true, false, true, true, true};
+const int morseQLength = 17;
+bool baseMorseQ[morseQLength] = {true, true, true, false, true, true, true, false, true, false, true, true, true};
+const int morseRLength = 8;
+bool baseMorseR[morseRLength] = {true, false, true, true, true, false, true};
+
+const int morseUnitLength = 300;
+const int morseTotalLength = morseCLength + 3 + morseOLength + 3 + morseLLength + 3 + morseALength + 17;
+bool morseButtonFlag = false;
+
+void seq1Morse() {
+  int morseStep = stateTimer / morseUnitLength;
+  
+  if (   morseLetter(baseMorseC, morseCLength, 0, morseStep) 
+      || morseLetter(baseMorseO, morseOLength, morseCLength + 3, morseStep)
+      || morseLetter(baseMorseL, morseLLength, morseCLength + morseOLength + 2*3, morseStep)
+      || morseLetter(baseMorseA, morseALength, morseCLength + morseOLength + morseKLength + 3*3, morseStep)      
+  ) {
+    playSound();
+  }
+  else {
+    stopSound();
+  }
+
+  if (morseStep > morseTotalLength) {
+    stateTimer = 0;
+  }
+}
+
+bool morseLetter(bool* letter, int arrayLength, int offset, int morseStep) {
+  if (morseStep >= offset && morseStep < offset + arrayLength) {
+    return letter[morseStep - offset];
+  }
+
+  return false;
 }
 
 void seq2() {
+  requireNoWireCuts();
   
+  seq2Leds();
+  seq2Logic();
 }
 
+void seq2Logic() {
+  if (buttonReads[1] == HIGH || buttonReads[2] == HIGH) {
+    nextState = DEAD;
+    return;
+  }
+
+  if (buttonTransitions[0] != HIGH_TO_LOW) return;
+  
+  if (switchReads[0] != HIGH || switchReads[1] != HIGH || switchReads[2] != LOW) {
+    nextState = DEAD;
+    return;
+  }
+
+  nextState = SEQ3;
+}
+
+void seq2Leds() {
+  ledWrites[1] = HIGH;
+  ledWrites[2] = HIGH;
+  ledWrites[5] = HIGH;
+
+  if (stateTimer / 1000 % 2 > 0) {
+    ledWrites[6] = HIGH;
+    ledWrites[7] = HIGH;
+  } else {
+    ledWrites[6] = LOW;
+    ledWrites[7] = LOW;
+  }
+}
+
+int seq3Step = 1;
 void seq3() {
- 
+  requireNoSwitchTransitions();
+  requireNoWireCuts();
+  
+  seq3Step1();
+  seq3Step2();
+}
+
+void seq3Step1() {
+  if (seq3Step != 1) return;
+
+  if (buttonTransitions[0] == HIGH_TO_LOW || buttonTransitions[1] == HIGH_TO_LOW || buttonTransitions[2] == HIGH_TO_LOW)
+  {
+    nextState = DEAD; 
+    return;
+  }
+
+  if (buttonReads[0] == HIGH && buttonReads[1] == HIGH && buttonReads[2] == HIGH) {
+    seq3Step = 2;
+    stateTimer = 0;
+    return;
+  }
+}
+
+const int seq3CombCount = 4;
+int seq3CombCounter = 0;
+bool allowedButton1TransitionsPerCombination[numButtonPins][seq3CombCount] = {
+  {true, false, false, true},
+  {false, false, false, true},
+  {true, true, false, false}
+};
+
+void seq3Step2() {
+  if (seq3Step != 2) return;
+
+  seq3Presentation();
+  if (buttonTransitions[0] == LOW_TO_HIGH || buttonTransitions[1] == LOW_TO_HIGH || buttonTransitions[2] == LOW_TO_HIGH)
+  {
+    nextState = DEAD; 
+    return;
+  }
+
+  for (int n = 0; n < numButtonPins; n++) {
+    if (buttonTransitions[n] != HIGH_TO_LOW) continue;
+    if (!allowedButton1TransitionsPerCombination[n, seq3CombCounter])     {
+      nextState = DEAD;
+      return;
+    }
+  }
+
+  if (buttonReads[0] == LOW && buttonReads[1] == LOW && buttonReads[2] == LOW) {
+    nextState = DISARMED;
+    return;
+  }
+
+  if (stateTimer > 5000) {
+    stateTimer = 0;
+    seq3CombCounter++;
+
+    if (seq3CombCounter >= seq3CombCount) {
+      seq3CombCounter = 0;
+    }
+  }
+}
+
+bool seq3LedDisplays[3][seq3CombCount] = {
+  {false, true, false},
+  {true, true, false},
+  {true, true, false}
+};
+
+void seq3Presentation() {
+  for (int n = 0; n < 3; n++) {
+    setseq3Led(n, seq3LedDisplays[n][seq3CombCounter]);
+  }
+}
+
+void setseq3Led(int led, bool on) {
+  int value = LOW;
+  if (on) value = HIGH;
+  
+  switch(led) {
+    case 0: {
+      ledWrites[0] = value;
+      ledWrites[0] = value;
+      break;
+    }
+    case 1: {
+      ledWrites[2] = value;
+      ledWrites[3] = value;
+      ledWrites[4] = value;
+      break;
+    }
+    case 2: {
+      ledWrites[5] = value;
+      ledWrites[6] = value;
+      ledWrites[7] = value;
+      break;
+    }
+  }
 }
 
 void disarmed() {

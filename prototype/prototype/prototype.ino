@@ -3,7 +3,7 @@
 enum digitalTransition { SAME, LOW_TO_HIGH, HIGH_TO_LOW };
 enum ledColor { YELLOW, RED, BLUE };
 bool logging = true;
-asdf
+
 // inputs
 const int numAnalogPins = 4;
 const int analogPins[numAnalogPins] = { A0, A1, A2, A3 };
