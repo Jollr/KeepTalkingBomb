@@ -32,14 +32,12 @@ const int clockPin = 13;
 bool switchFlag = false;
 enum gameState { DISARMED, SEQ1, SEQ2, SEQ3, DEAD };
 gameState currentState = SEQ1;
-gameState nextState = SEQ1;
+gameState nextState = SEQ3;
 unsigned long stateTimer = 0;
 unsigned long prevTimeStamp = millis();
 
 void setup() {
   Serial.begin(9600);
-  
-  currentState = SEQ1;
   
   log("begin", true);
   log("state: ", false);
@@ -208,14 +206,16 @@ int seq3Step = 1;
 void seq3() {
   requireNoSwitchTransitions();
   requireNoWireCuts();
-  
-  seq3Step1();
-  seq3Step2();
+
+  if (seq3Step == 1) {
+    seq3Step1();  
+  }
+  else if (seq3Step == 2) {
+    seq3Step2();  
+  }
 }
 
 void seq3Step1() {
-  if (seq3Step != 1) return;
-
   if (buttonTransitions[0] == HIGH_TO_LOW || buttonTransitions[1] == HIGH_TO_LOW || buttonTransitions[2] == HIGH_TO_LOW)
   {
     nextState = DEAD; 
@@ -223,33 +223,44 @@ void seq3Step1() {
   }
 
   if (buttonReads[0] == HIGH && buttonReads[1] == HIGH && buttonReads[2] == HIGH) {
+    log("seq3Step -> 2", true);
     seq3Step = 2;
     stateTimer = 0;
     return;
   }
 }
 
-const int seq3CombCount = 4;
+const int seq3CombCount = 8;
 int seq3CombCounter = 0;
 bool allowedButton1TransitionsPerCombination[numButtonPins][seq3CombCount] = {
-  {true, false, false, true},
-  {false, false, false, true},
-  {true, true, false, false}
+  {false, true, true, true, false, true, true, true},
+  {true, false, true, true, false, true, false},
+  {true, true, false, true, true, true, true}
 };
 
 void seq3Step2() {
-  if (seq3Step != 2) return;
-
   seq3Presentation();
-  if (buttonTransitions[0] == LOW_TO_HIGH || buttonTransitions[1] == LOW_TO_HIGH || buttonTransitions[2] == LOW_TO_HIGH)
-  {
-    nextState = DEAD; 
-    return;
-  }
+  seq3Step2Logic();
+}
 
+void seq3Step2Logic() {
+  for (int n = 0; n < numButtonPins; n++) {
+    if (buttonTransitions[n] == LOW_TO_HIGH)
+    {
+      log("low to high transition for button ", false);
+      log(n, true);
+      nextState = DEAD; 
+      return;
+    }
+  }
+  
   for (int n = 0; n < numButtonPins; n++) {
     if (buttonTransitions[n] != HIGH_TO_LOW) continue;
-    if (!allowedButton1TransitionsPerCombination[n, seq3CombCounter])     {
+    if (!allowedButton1TransitionsPerCombination[n][seq3CombCounter]) {
+      log("high to low transition for button ", false);
+      log(n, false);
+      log(" is not allowed in combination ", false);
+      log(seq3CombCounter, true);
       nextState = DEAD;
       return;
     }
@@ -260,7 +271,7 @@ void seq3Step2() {
     return;
   }
 
-  if (stateTimer > 5000) {
+  if (stateTimer > 2000) {
     stateTimer = 0;
     seq3CombCounter++;
 
@@ -271,35 +282,35 @@ void seq3Step2() {
 }
 
 bool seq3LedDisplays[3][seq3CombCount] = {
-  {false, true, false},
-  {true, true, false},
-  {true, true, false}
+  {false, true, true, true, false, true, true, true},
+  {true, true, false, true, true, true, true},
+  {true, false, true, true, false, true, false}
 };
 
 void seq3Presentation() {
   for (int n = 0; n < 3; n++) {
-    setseq3Led(n, seq3LedDisplays[n][seq3CombCounter]);
+    setSeq3Led(n, seq3LedDisplays[n][seq3CombCounter]);
   }
 }
 
-void setseq3Led(int led, bool on) {
+void setSeq3Led(int led, bool on) {
   int value = LOW;
   if (on) value = HIGH;
   
   switch(led) {
     case 0: {
       ledWrites[0] = value;
-      ledWrites[0] = value;
+      ledWrites[1] = value;
+      ledWrites[2] = value;
       break;
     }
     case 1: {
-      ledWrites[2] = value;
       ledWrites[3] = value;
       ledWrites[4] = value;
+      ledWrites[5] = value;
       break;
     }
     case 2: {
-      ledWrites[5] = value;
       ledWrites[6] = value;
       ledWrites[7] = value;
       break;
