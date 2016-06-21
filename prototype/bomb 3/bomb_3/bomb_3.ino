@@ -1,5 +1,5 @@
 enum digitalTransition { SAME, LOW_TO_HIGH, HIGH_TO_LOW };
-enum ledColor { YELLOW, RED, BLUE };
+enum ledColor { YELLOW, BLUE, RED  };
 bool logging = true;
 
 // inputs
@@ -88,7 +88,55 @@ void gameLogic() {
 }
 
 void seq1() {
- 
+  requireNoWireCuts();
+  requireNoSwitchTransitions();
+
+  seq1LogicStep();  
+}
+
+// simon says
+int simonStepNumber = 0;
+int simonButtonCounter = 0;
+const int simonStepCount = 5;
+const ledColor simonSequence[simonStepCount] = { BLUE, YELLOW, RED, YELLOW, BLUE };
+const int simonLedMap[3] = {6, 4, 1};
+const int simonButtonMap[3] = { 0, 2, 1 };
+byte previousLedPin = 0;
+
+void seq1LogicStep() {  
+  ledWrites[previousLedPin] = LOW;
+  int stepInAnimation = stateTimer / 300;
+  if (stepInAnimation % 2 == 0 && stepInAnimation <= 2*simonStepNumber) {
+    previousLedPin = simonLedMap[simonSequence[stepInAnimation / 2]];
+    ledWrites[previousLedPin] = HIGH;
+  } 
+
+  int expectedLed = simonLedMap[simonSequence[simonButtonCounter]];
+  if ( 
+       (buttonTransitions[simonButtonMap[0]] == HIGH_TO_LOW && expectedLed == 1) ||
+       (buttonTransitions[simonButtonMap[1]] == HIGH_TO_LOW && expectedLed == 4) ||
+       (buttonTransitions[simonButtonMap[2]] == HIGH_TO_LOW && expectedLed == 6)
+     ) {
+    
+    simonButtonCounter++;
+    
+  } else if (buttonTransitions[0] == HIGH_TO_LOW || buttonTransitions[1] == HIGH_TO_LOW || buttonTransitions[2] == HIGH_TO_LOW) {
+    log("wrong button pressed", true);    
+    nextState = DEAD;
+  }
+
+  if (simonButtonCounter > simonStepNumber) {
+    simonButtonCounter = 0;
+    simonStepNumber++;
+    stateTimer = 0;
+  }
+
+  if (simonStepNumber == simonStepCount) {
+    simonStepNumber = 0;
+    simonButtonCounter = 0;
+    previousLedPin = 0;
+    nextState = SEQ2;
+  }
 }
 
 void seq2() {
