@@ -32,7 +32,7 @@ const int clockPin = 13;
 bool switchFlag = false;
 enum gameState { DISARMED, SEQ1, SEQ2, SEQ3, DEAD };
 gameState currentState = SEQ1;
-gameState nextState = SEQ1;
+gameState nextState = SEQ2;
 unsigned long stateTimer = 0;
 unsigned long prevTimeStamp = millis();
 
@@ -144,9 +144,17 @@ void seq1LogicStep() {
 }
 
 int seq2Step = 1;
+const int seq2RequiredButton = 2;
 void seq2() {
   requireNoWireCuts();
   requireNoSwitchTransitions();
+
+  for (int n = 0; n < numButtonPins; n++) {
+    if (n != seq2RequiredButton && buttonReads[n] == HIGH) {
+      nextState = DEAD;
+      return;
+    }
+  }
 
   if (seq2Step == 1) {
     seq2Step1();
@@ -157,11 +165,49 @@ void seq2() {
 }
 
 void seq2Step1() {
+  if (buttonTransitions[seq2RequiredButton] == LOW_TO_HIGH) {
+    seq2Step = 2;
+    log("entering step 2", true);
+  }
+}
+
+const int numSeq2Steps = 12;
+const int seq2StepLength = 800;
+const int seq2LedsSequence[numSeq2Steps][numLedValues] = {
+  {HIGH, LOW, HIGH, HIGH, HIGH, LOW, LOW, HIGH },
+  {LOW, HIGH, HIGH, HIGH, HIGH, HIGH, HIGH, HIGH },
+  {HIGH, HIGH, HIGH, HIGH, HIGH, HIGH, LOW, HIGH },
+  {HIGH, LOW, HIGH, HIGH, LOW, HIGH, HIGH, HIGH },
+  {HIGH, HIGH, HIGH, HIGH, HIGH, HIGH, LOW, HIGH },
+  {LOW, HIGH, HIGH, HIGH, HIGH, LOW, HIGH, HIGH },
+  {LOW, HIGH, LOW, HIGH, LOW, HIGH, HIGH, LOW },
+  {HIGH, HIGH, HIGH, LOW, HIGH, HIGH, HIGH, HIGH },
+  {HIGH, HIGH, HIGH, LOW, LOW, HIGH, LOW, HIGH },
+  {LOW, LOW, HIGH, LOW, HIGH, LOW, HIGH, HIGH },
+  {HIGH, HIGH, LOW, LOW, HIGH, HIGH, HIGH, LOW },
+  {HIGH, HIGH, HIGH, LOW, HIGH, LOW, HIGH, HIGH }
+};
+const int seq2allowedInput[numSeq2Steps] = {2, 2, 1, 0, 2, 3, 1, 3, 1, 1, 0, 3};
+
+void seq2Step2() {
+  seq2Step2Logic();
+  seq2Step2Presentation();
+}
+
+void seq2Step2Logic() {
+  if (buttonTransitions[seq2RequiredButton] != HIGH_TO_LOW) return;
   
 }
 
-void seq2Step2() {
-  
+void seq2Step2Presentation() {
+  if (stateTimer > numSeq2Steps * seq2StepLength) {
+    stateTimer = 0;
+  }
+
+  int seq2Step = stateTimer / seq2StepLength;
+  for (int n = 0; n < numLedValues; n++) {
+    ledWrites[n] = seq2LedsSequence[seq2Step][n];
+  }
 }
 
 void seq3() {
