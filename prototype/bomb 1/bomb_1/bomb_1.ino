@@ -173,20 +173,22 @@ const ledColor simonSequence[simonStepCount] = { RED, BLUE, RED, YELLOW, BLUE };
 const int simonLedMap[3] = {6, 1, 4};
 const int simonButtonMap[3] = { 2, 1, 0 };
 byte previousLedPin = 0;
+const unsigned long simonSequenceLength = simonStepCount * 2 * 300 + 1000;
 
 void seq2LogicStep() {  
   ledWrites[previousLedPin] = LOW;
   int stepInAnimation = stateTimer / 300;
-  if (stepInAnimation % 2 == 0 && stepInAnimation <= 2*simonStepNumber) {
+  bool anyButtonIsPressed = buttonReads[0] == HIGH  || buttonReads[1] == HIGH  || buttonReads[2] == HIGH;
+  if (stepInAnimation % 2 == 0 && stepInAnimation <= 2*simonStepNumber  && simonButtonCounter < 1 && !anyButtonIsPressed) {
     previousLedPin = simonLedMap[simonSequence[stepInAnimation / 2]];
     ledWrites[previousLedPin] = HIGH;
   } 
 
   int expectedLed = simonLedMap[simonSequence[simonButtonCounter]];
   if ( 
-       (buttonTransitions[0] == HIGH_TO_LOW && expectedLed == 1) ||
-       (buttonTransitions[1] == HIGH_TO_LOW && expectedLed == 4) ||
-       (buttonTransitions[2] == HIGH_TO_LOW && expectedLed == 6)
+       (buttonTransitions[simonButtonMap[0]] == HIGH_TO_LOW && expectedLed == 1) ||
+       (buttonTransitions[simonButtonMap[1]] == HIGH_TO_LOW && expectedLed == 4) ||
+       (buttonTransitions[simonButtonMap[2]] == HIGH_TO_LOW && expectedLed == 6)
      ) {
     
     simonButtonCounter++;
@@ -209,6 +211,8 @@ void seq2LogicStep() {
     switchFlag = true;
     log("setting switch flag to true", true);
   }
+
+  if (stateTimer > simonSequenceLength) stateTimer = 0;
 }
 
 void seq3() {
