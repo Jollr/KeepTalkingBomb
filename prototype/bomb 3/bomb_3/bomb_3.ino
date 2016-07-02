@@ -32,7 +32,7 @@ const int clockPin = 13;
 bool switchFlag = false;
 enum gameState { DISARMED, SEQ1, SEQ2, SEQ3, DEAD };
 gameState currentState = SEQ1;
-gameState nextState = SEQ2;
+gameState nextState = SEQ3;
 unsigned long stateTimer = 0;
 unsigned long prevTimeStamp = millis();
 
@@ -217,8 +217,126 @@ void seq2Step2Presentation() {
   }
 }
 
+int seq3Step = 1;
 void seq3() {
- 
+  requireNoButtonPresses();
+  if (wireCuts[1]) {
+    nextState = DEAD; return;
+  }
+
+  if (seq3Step == 1) {
+    seq3SwitchStep();
+  }
+  else {
+    seq3MorseStep();
+  }
+}
+
+void seq3SwitchStep() {
+  requireNoWireCuts();
+
+  for (int n = 0; n < numSwitchPins; n++) {
+    if (switchTransitions[n] == HIGH_TO_LOW) {
+      nextState = DEAD;
+      return;
+    }
+  }
+
+  if (switchReads[0] == HIGH && switchReads[1] == HIGH && switchReads[2] == HIGH) {
+    seq3Step++;
+    log("entering seq 3 morse step", true);
+  }
+}
+
+void seq3MorseStep() {
+  seq3Logic();
+  seq3Morse();
+}
+
+int expectedSwitchFlip = -1;
+void seq3Logic() {
+  for (int n = 0; n < numSwitchPins; n++) {
+    if (switchTransitions[n] == LOW_TO_HIGH) {
+      nextState = DEAD;
+      return;
+    }
+  }
+
+  if (expectedSwitchFlip == -1) {
+    requireNoSwitchTransitions();
+    if (wireCuts[0]) {
+      expectedSwitchFlip++;
+      log("expectedSwitchFlip ", false);
+      log(expectedSwitchFlip, true);
+    }
+    return;
+  }
+  
+  for (int n = 0; n < numSwitchPins; n++) {
+    if (n != expectedSwitchFlip) {
+      if (switchTransitions[n] == HIGH_TO_LOW){
+        log("switch ", false);
+        log(n, false);
+        log(" high to low not allowed", true);
+        nextState = DEAD;
+      }
+      continue;
+    }
+    
+    if (switchTransitions[expectedSwitchFlip] == HIGH_TO_LOW) {
+      expectedSwitchFlip++;
+      log("expectedSwitchFlip ", false);
+      log(expectedSwitchFlip, true);
+    }
+  }
+
+  if (expectedSwitchFlip == 3) {
+    nextState = DISARMED;
+  }
+}
+
+// morse
+const int morseALength = 5;
+bool baseMorseA[morseALength] = {true, false, true, true, true};
+const int morseELength = 1;
+bool baseMorseE[morseELength] = {true};
+const int morseKLength = 9;
+bool baseMorseK[morseKLength] = {true, true, true, false, true, false, true, true, true };
+const int morseLLength = 9;
+bool baseMorseL[morseLLength] = {true, false, true, true, true, false, true, false, true};
+const int morsePLength = 11;
+bool baseMorseP[morsePLength] = {true, false, true, true, true, false, true, true, true, false, true};
+
+const int morseUnitLength = 300;
+const int morseTotalLength = morseKLength + 3 + morseALength + 3 + morsePLength + 3 + morseELength + 3 + morseLLength + 17;
+bool morseButtonFlag = false;
+
+void seq3Morse() {
+  int morseStep = stateTimer / morseUnitLength;
+  
+  if (   morseLetter(baseMorseK, morseKLength, 0, morseStep) 
+      || morseLetter(baseMorseA, morseALength, morseKLength + 3, morseStep)
+      || morseLetter(baseMorseP, morsePLength, morseKLength + morseALength + 2*3, morseStep)
+      || morseLetter(baseMorseE, morseELength, morseKLength + morseALength + morsePLength + 3*3, morseStep)
+      || morseLetter(baseMorseL, morseLLength, morseKLength + morseALength + morsePLength + morseELength + 4*3, morseStep)
+  ) {
+    playSound();
+  }
+  else {
+    stopSound();
+  }
+
+  if (morseStep > morseTotalLength) {
+    stateTimer = 0;
+  }
+}
+
+bool morseLetter(bool* letter, int arrayLength, int offset, int morseStep) {
+  if (morseStep >= offset && morseStep < offset + arrayLength) {
+    return letter[morseStep - offset];
+  }
+
+  return false;
 }
 
 void disarmed() {
