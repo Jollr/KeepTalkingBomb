@@ -167,27 +167,25 @@ void seq2() {
 void seq2Step1() {
   if (buttonTransitions[seq2RequiredButton] == LOW_TO_HIGH) {
     seq2Step = 2;
+    stateTimer = 0;
     log("entering step 2", true);
   }
 }
 
-const int numSeq2Steps = 12;
-const int seq2StepLength = 800;
+const int seq2AnalogPin = 3;
+const int numSeq2Steps = 8;
+const int seq2StepLength = 1200;
 const int seq2LedsSequence[numSeq2Steps][numLedValues] = {
   {HIGH, LOW, HIGH, HIGH, HIGH, LOW, LOW, HIGH },
-  {LOW, HIGH, HIGH, HIGH, HIGH, HIGH, HIGH, HIGH },
-  {HIGH, HIGH, HIGH, HIGH, HIGH, HIGH, LOW, HIGH },
+  {LOW, HIGH, LOW, LOW, HIGH, HIGH, HIGH, HIGH },
+  {LOW, HIGH, HIGH, HIGH, HIGH, HIGH, LOW, HIGH },
   {HIGH, LOW, HIGH, HIGH, LOW, HIGH, HIGH, HIGH },
   {HIGH, HIGH, HIGH, HIGH, HIGH, HIGH, LOW, HIGH },
-  {LOW, HIGH, HIGH, HIGH, HIGH, LOW, HIGH, HIGH },
+  {LOW, HIGH, LOW, LOW, HIGH, LOW, LOW, HIGH },
   {LOW, HIGH, LOW, HIGH, LOW, HIGH, HIGH, LOW },
-  {HIGH, HIGH, HIGH, LOW, HIGH, HIGH, HIGH, HIGH },
-  {HIGH, HIGH, HIGH, LOW, LOW, HIGH, LOW, HIGH },
-  {LOW, LOW, HIGH, LOW, HIGH, LOW, HIGH, HIGH },
-  {HIGH, HIGH, LOW, LOW, HIGH, HIGH, HIGH, LOW },
-  {HIGH, HIGH, HIGH, LOW, HIGH, LOW, HIGH, HIGH }
+  {HIGH, HIGH, HIGH, LOW, HIGH, LOW, HIGH, HIGH },
 };
-const int seq2allowedInput[numSeq2Steps] = {2, 2, 1, 0, 2, 3, 1, 3, 1, 1, 0, 3};
+const int seq2allowedInput[numSeq2Steps] = {2, 2, 1, 0, 2, 3, 1, 3};
 
 void seq2Step2() {
   seq2Step2Logic();
@@ -196,7 +194,16 @@ void seq2Step2() {
 
 void seq2Step2Logic() {
   if (buttonTransitions[seq2RequiredButton] != HIGH_TO_LOW) return;
-  
+
+  int allowedInputIndex = stateTimer / seq2StepLength;
+  log(allowedInputIndex, true);
+  if (analogReads[seq2AnalogPin] / 256 != seq2allowedInput[allowedInputIndex])
+  {
+    nextState = DEAD;
+    return;
+  }
+
+  nextState = SEQ3;
 }
 
 void seq2Step2Presentation() {
@@ -204,9 +211,9 @@ void seq2Step2Presentation() {
     stateTimer = 0;
   }
 
-  int seq2Step = stateTimer / seq2StepLength;
+  int ledCombinationIndex = stateTimer / seq2StepLength;
   for (int n = 0; n < numLedValues; n++) {
-    ledWrites[n] = seq2LedsSequence[seq2Step][n];
+    ledWrites[n] = seq2LedsSequence[ledCombinationIndex][n];
   }
 }
 
