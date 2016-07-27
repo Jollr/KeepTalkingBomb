@@ -232,10 +232,10 @@ void seq3Step1() {
 
 const int seq3CombCount = 8;
 int seq3CombCounter = 0;
-bool allowedButton1TransitionsPerCombination[numButtonPins][seq3CombCount] = {
-  {false, true, true, true, false, true, true, true},
-  {true, false, true, true, false, true, false},
-  {true, true, false, true, true, true, true}
+bool allowedButtonTransitionsPerCombination[numButtonPins][seq3CombCount] = {
+  {false, true, false, true, false, true, true, true},
+  {true, false, true, true, false, true, false, false},
+  {true, true, false, false, false, true, true, false}
 };
 
 void seq3Step2() {
@@ -256,7 +256,7 @@ void seq3Step2Logic() {
   
   for (int n = 0; n < numButtonPins; n++) {
     if (buttonTransitions[n] != HIGH_TO_LOW) continue;
-    if (!allowedButton1TransitionsPerCombination[n][seq3CombCounter]) {
+    if (!allowedButtonTransitionsPerCombination[n][seq3CombCounter]) {
       log("high to low transition for button ", false);
       log(n, false);
       log(" is not allowed in combination ", false);
@@ -281,15 +281,9 @@ void seq3Step2Logic() {
   }
 }
 
-bool seq3LedDisplays[3][seq3CombCount] = {
-  {false, true, true, true, false, true, true, true},
-  {true, true, false, true, true, true, true},
-  {true, false, true, true, false, true, false}
-};
-
 void seq3Presentation() {
   for (int n = 0; n < 3; n++) {
-    setSeq3Led(n, seq3LedDisplays[n][seq3CombCounter]);
+    setSeq3Led(n, allowedButtonTransitionsPerCombination[n][seq3CombCounter]);
   }
 }
 

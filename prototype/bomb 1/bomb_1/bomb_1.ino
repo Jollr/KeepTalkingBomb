@@ -121,22 +121,23 @@ void seq1SwitchCheck() {
 }
 
 void seq1LogicStep() {
-  if (buttonReads[0] == HIGH || buttonReads[2] == HIGH) {
+  if (switchReads[0] == LOW || switchReads[1] == LOW) {
     nextState = DEAD;
     return;
   }
 
-  if (seqButtonFlag) {
-    if (analogReads[1] / 256 != 0 || analogReads[2] / 256 != 3) {
+  if (switchReads[2] == HIGH) return;
+  
+  if (switchReads[2] == LOW) {
+    if (analogReads[0] / 256 != 3 || 
+        analogReads[1] / 256 != 3 ||
+        analogReads[2] / 256 != 3 ||
+        analogReads[3] / 256 != 0
+    ) {
       nextState = DEAD;
+    } else {
+      nextState = SEQ2;
     }
-  } 
-  else if (buttonTransitions[1] == HIGH_TO_LOW) {
-    if (analogReads[1] / 256 != 0 || analogReads[2] / 256 != 3) {
-      nextState = DEAD;
-    }
-    
-    seqButtonFlag = true;
   }
 }
 
@@ -169,9 +170,9 @@ void seq2SwitchCheck() {
 int simonStepNumber = 0;
 int simonButtonCounter = 0;
 const int simonStepCount = 5;
-const ledColor simonSequence[simonStepCount] = { RED, BLUE, RED, YELLOW, BLUE };
+const ledColor simonSequence[simonStepCount] = { BLUE, RED, BLUE, YELLOW, RED };
 const int simonLedMap[3] = {6, 1, 4};
-const int simonButtonMap[3] = { 2, 1, 0 };
+const int simonButtonSequence[simonStepCount] = { 0, 1, 0, 2, 1 };
 byte previousLedPin = 0;
 const unsigned long simonSequenceLength = simonStepCount * 2 * 300 + 1000;
 
@@ -185,14 +186,8 @@ void seq2LogicStep() {
   } 
 
   int expectedLed = simonLedMap[simonSequence[simonButtonCounter]];
-  if ( 
-       (buttonTransitions[simonButtonMap[0]] == HIGH_TO_LOW && expectedLed == 1) ||
-       (buttonTransitions[simonButtonMap[1]] == HIGH_TO_LOW && expectedLed == 4) ||
-       (buttonTransitions[simonButtonMap[2]] == HIGH_TO_LOW && expectedLed == 6)
-     ) {
-    
+  if (buttonTransitions[simonButtonSequence[simonButtonCounter]] == HIGH_TO_LOW) {  
     simonButtonCounter++;
-    
   } else if (buttonTransitions[0] == HIGH_TO_LOW || buttonTransitions[1] == HIGH_TO_LOW || buttonTransitions[2] == HIGH_TO_LOW) {
     log("wrong button pressed", true);    
     nextState = DEAD;
@@ -312,13 +307,22 @@ void readInputs() {
 
 void readAnalogInputs() {
   for (int n = 0; n < numAnalogPins; n++) {
-    int newInput = analogRead(analogPins[n]);
+    int newInput = readAnalogPin(n);
 
     if (abs(analogReads[n] - newInput) > 3) {
+      log(n, false);
+      log(" - ", false);
       log(newInput, true);
       analogReads[n] = newInput;
     }
   }
+}
+
+int readAnalogPin(int pinNumber) {
+  if (pinNumber == 0) return analogRead(pinNumber);
+  if (pinNumber == 1) return analogRead(pinNumber);
+  if (pinNumber == 2) return 1024 - analogRead(pinNumber);
+  if (pinNumber == 3) return 1024 - analogRead(pinNumber);
 }
 
 unsigned long buttonTransitionTimer[numButtonPins] = {0};
@@ -424,12 +428,27 @@ void writeLeds() {
   for (int n = 0; n < numLedValues; n++) {
     writeValue = writeValue * 2;
     
-    if (ledWrites[n] == HIGH) {
+    if (ledWrites[ledMap(n)] == HIGH) {
       writeValue++;
     }
   }
 
   writeTo595(writeValue);
+}
+
+int ledMap(int index) {
+  
+  switch (index) {
+    case 0: return 6;
+    case 1: return 0;
+    case 2: return 1;
+    case 3: return 7;
+    case 4: return 5;
+    case 5: return 3;
+    case 6: return 2;
+    case 7: return 4;
+    default: return 0;
+  }
 }
 
 void writeTo595(int value) {
