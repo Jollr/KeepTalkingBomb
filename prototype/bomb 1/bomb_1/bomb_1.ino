@@ -89,6 +89,7 @@ void gameLogic() {
 
 bool seqButtonFlag = false;
 void seq1() {
+  requireNoButtonPresses();
   requireNoWireCuts();
   seq1SwitchCheck();
   

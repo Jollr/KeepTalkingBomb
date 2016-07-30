@@ -1,4 +1,5 @@
 enum digitalTransition { SAME, LOW_TO_HIGH, HIGH_TO_LOW };
+enum ledColor { YELLOW, RED, BLUE };
 bool logging = true;
 
 // inputs
@@ -87,64 +88,237 @@ void gameLogic() {
 }
 
 void seq1() {
+  requireNoWireCuts();
   requireNoSwitchTransitions();
-  seq1Logic();
-  seq1Morse();
+
+  seq1LogicStep();  
 }
 
-void seq1Logic() {
-  if (buttonReads[0] == HIGH || buttonReads[2] == HIGH) {
+// simon says
+int simonStepNumber = 0;
+int simonButtonCounter = 0;
+const int simonStepCount = 5;
+const ledColor simonSequence[simonStepCount] = { BLUE, YELLOW, RED, YELLOW, BLUE };
+const int simonLedMap[3] = {6, 4, 1};
+const int simonButtonMap[3] = { 0, 2, 1 };
+byte previousLedPin = 0;
+const unsigned long simonSequenceLength = simonStepCount * 2 * 300 + 1000;
+
+void seq1LogicStep() {  
+  ledWrites[previousLedPin] = LOW;
+  int stepInAnimation = stateTimer / 300;
+  bool anyButtonIsPressed = buttonReads[0] == HIGH  || buttonReads[1] == HIGH  || buttonReads[2] == HIGH;
+  if (stepInAnimation % 2 == 0 && stepInAnimation <= 2*simonStepNumber && simonButtonCounter < 1 && !anyButtonIsPressed) {
+    previousLedPin = simonLedMap[simonSequence[stepInAnimation / 2]];
+    ledWrites[previousLedPin] = HIGH;
+  } 
+
+  int expectedLed = simonLedMap[simonSequence[simonButtonCounter]];
+  if ( 
+       (buttonTransitions[simonButtonMap[0]] == HIGH_TO_LOW && expectedLed == 1) ||
+       (buttonTransitions[simonButtonMap[1]] == HIGH_TO_LOW && expectedLed == 4) ||
+       (buttonTransitions[simonButtonMap[2]] == HIGH_TO_LOW && expectedLed == 6)
+     ) {
+    
+    simonButtonCounter++;
+    
+  } else if (buttonTransitions[0] == HIGH_TO_LOW || buttonTransitions[1] == HIGH_TO_LOW || buttonTransitions[2] == HIGH_TO_LOW) {
+    log("wrong button pressed", true);    
     nextState = DEAD;
-    return;
   }
- 
-  if (buttonTransitions[1] != HIGH_TO_LOW) return;
-  
-  if (analogReads[0] / 256 != 2 || 
-      analogReads[1] / 256 != 3 ||
-      analogReads[2] / 256 != 3 ||
-      analogReads[3] / 256 != 1) 
+
+  if (simonButtonCounter > simonStepNumber) {
+    simonButtonCounter = 0;
+    simonStepNumber++;
+    stateTimer = 0;
+  }
+
+  if (simonStepNumber == simonStepCount) {
+    simonStepNumber = 0;
+    simonButtonCounter = 0;
+    previousLedPin = 0;
+    nextState = SEQ2;
+  }
+
+  if (stateTimer > simonSequenceLength) stateTimer = 0;
+}
+
+int seq2Step = 1;
+const int seq2RequiredButton = 2;
+void seq2() {
+  requireNoWireCuts();
+  requireNoSwitchTransitions();
+
+  for (int n = 0; n < numButtonPins; n++) {
+    if (n != seq2RequiredButton && buttonReads[n] == HIGH) {
+      nextState = DEAD;
+      return;
+    }
+  }
+
+  if (seq2Step == 1) {
+    seq2Step1();
+  }
+  else if (seq2Step == 2) {
+    seq2Step2();
+  }
+}
+
+void seq2Step1() {
+  if (buttonTransitions[seq2RequiredButton] == LOW_TO_HIGH) {
+    seq2Step = 2;
+    stateTimer = 0;
+    log("entering step 2", true);
+  }
+}
+
+const int seq2AnalogPin = 3;
+const int numSeq2Steps = 8;
+const int seq2StepLength = 1200;
+const int seq2LedsSequence[numSeq2Steps][numLedValues] = {
+  {HIGH, LOW, HIGH, HIGH, HIGH, LOW, LOW, HIGH },
+  {LOW, HIGH, LOW, LOW, HIGH, HIGH, HIGH, HIGH },
+  {LOW, HIGH, HIGH, HIGH, HIGH, HIGH, LOW, HIGH },
+  {HIGH, LOW, HIGH, HIGH, LOW, HIGH, HIGH, HIGH },
+  {HIGH, HIGH, HIGH, HIGH, HIGH, HIGH, LOW, HIGH },
+  {LOW, HIGH, LOW, LOW, HIGH, LOW, LOW, HIGH },
+  {LOW, HIGH, LOW, HIGH, LOW, HIGH, HIGH, LOW },
+  {HIGH, HIGH, HIGH, LOW, HIGH, LOW, HIGH, HIGH },
+};
+const int seq2allowedInput[numSeq2Steps] = {2, 2, 1, 0, 2, 3, 1, 3};
+
+void seq2Step2() {
+  seq2Step2Logic();
+  seq2Step2Presentation();
+}
+
+void seq2Step2Logic() {
+  if (buttonTransitions[seq2RequiredButton] != HIGH_TO_LOW) return;
+
+  int allowedInputIndex = stateTimer / seq2StepLength;
+  log(allowedInputIndex, true);
+  if (analogReads[seq2AnalogPin] / 256 != seq2allowedInput[allowedInputIndex])
   {
-    log(analogReads[0] / 256, true);
-    log(analogReads[1] / 256, true);
-    log(analogReads[2] / 256, true);
-    log(analogReads[3] / 256, true);
     nextState = DEAD;
     return;
   }
 
-  nextState = SEQ2;
+  nextState = SEQ3;
+}
+
+void seq2Step2Presentation() {
+  if (stateTimer > numSeq2Steps * seq2StepLength) {
+    stateTimer = 0;
+  }
+
+  int ledCombinationIndex = stateTimer / seq2StepLength;
+  for (int n = 0; n < numLedValues; n++) {
+    ledWrites[n] = seq2LedsSequence[ledCombinationIndex][n];
+  }
+}
+
+int seq3Step = 1;
+void seq3() {
+  requireNoButtonPresses();
+  if (wireCuts[1]) {
+    nextState = DEAD; return;
+  }
+
+  if (seq3Step == 1) {
+    seq3SwitchStep();
+  }
+  else {
+    seq3MorseStep();
+  }
+}
+
+void seq3SwitchStep() {
+  requireNoWireCuts();
+
+  for (int n = 0; n < numSwitchPins; n++) {
+    if (switchTransitions[n] == HIGH_TO_LOW) {
+      nextState = DEAD;
+      return;
+    }
+  }
+
+  if (switchReads[0] == HIGH && switchReads[1] == HIGH && switchReads[2] == HIGH) {
+    seq3Step++;
+    log("entering seq 3 morse step", true);
+  }
+}
+
+void seq3MorseStep() {
+  seq3Logic();
+  seq3Morse();
+}
+
+int expectedSwitchFlip = -1;
+void seq3Logic() {
+  for (int n = 0; n < numSwitchPins; n++) {
+    if (switchTransitions[n] == LOW_TO_HIGH) {
+      nextState = DEAD;
+      return;
+    }
+  }
+
+  if (expectedSwitchFlip == -1) {
+    requireNoSwitchTransitions();
+    if (wireCuts[0]) {
+      expectedSwitchFlip++;
+      log("expectedSwitchFlip ", false);
+      log(expectedSwitchFlip, true);
+    }
+    return;
+  }
+  
+  for (int n = 0; n < numSwitchPins; n++) {
+    if (n != expectedSwitchFlip) {
+      if (switchTransitions[n] == HIGH_TO_LOW){
+        log("switch ", false);
+        log(n, false);
+        log(" high to low not allowed", true);
+        nextState = DEAD;
+      }
+      continue;
+    }
+    
+    if (switchTransitions[expectedSwitchFlip] == HIGH_TO_LOW) {
+      expectedSwitchFlip++;
+      log("expectedSwitchFlip ", false);
+      log(expectedSwitchFlip, true);
+    }
+  }
+
+  if (expectedSwitchFlip == 3) {
+    nextState = DISARMED;
+  }
 }
 
 // morse
 const int morseALength = 5;
 bool baseMorseA[morseALength] = {true, false, true, true, true};
-const int morseCLength = 12;
-bool baseMorseC[morseCLength] = {true, true, true, false, true, false, true, true, true, false, true};
+const int morseELength = 1;
+bool baseMorseE[morseELength] = {true};
 const int morseKLength = 9;
 bool baseMorseK[morseKLength] = {true, true, true, false, true, false, true, true, true };
-const int morseLLength = 10;
+const int morseLLength = 9;
 bool baseMorseL[morseLLength] = {true, false, true, true, true, false, true, false, true};
-const int morseMLength = 8;
-bool baseMorseM[morseMLength] = {true, true, true, false, true, true, true};
-const int morseOLength = 11;
-bool baseMorseO[morseOLength] = {true, true, true, false, true, true, true, false, true, true, true};
-const int morseQLength = 17;
-bool baseMorseQ[morseQLength] = {true, true, true, false, true, true, true, false, true, false, true, true, true};
-const int morseRLength = 8;
-bool baseMorseR[morseRLength] = {true, false, true, true, true, false, true};
+const int morsePLength = 11;
+bool baseMorseP[morsePLength] = {true, false, true, true, true, false, true, true, true, false, true};
 
 const int morseUnitLength = 300;
-const int morseTotalLength = morseCLength + 3 + morseOLength + 3 + morseLLength + 3 + morseALength + 17;
+const int morseTotalLength = morseKLength + 3 + morseALength + 3 + morsePLength + 3 + morseELength + 3 + morseLLength + 17;
 bool morseButtonFlag = false;
 
-void seq1Morse() {
+void seq3Morse() {
   int morseStep = stateTimer / morseUnitLength;
   
-  if (   morseLetter(baseMorseC, morseCLength, 0, morseStep) 
-      || morseLetter(baseMorseO, morseOLength, morseCLength + 3, morseStep)
-      || morseLetter(baseMorseL, morseLLength, morseCLength + morseOLength + 2*3, morseStep)
-      || morseLetter(baseMorseA, morseALength, morseCLength + morseOLength + morseKLength + 3*3, morseStep)      
+  if (   morseLetter(baseMorseK, morseKLength, 0, morseStep) 
+      || morseLetter(baseMorseA, morseALength, morseKLength + 3, morseStep)
+      || morseLetter(baseMorseP, morsePLength, morseKLength + morseALength + 2*3, morseStep)
+      || morseLetter(baseMorseE, morseELength, morseKLength + morseALength + morsePLength + 3*3, morseStep)
+      || morseLetter(baseMorseL, morseLLength, morseKLength + morseALength + morsePLength + morseELength + 4*3, morseStep)
   ) {
     playSound();
   }
@@ -163,111 +337,6 @@ bool morseLetter(bool* letter, int arrayLength, int offset, int morseStep) {
   }
 
   return false;
-}
-
-void seq2() {
-  seq2Logic();
-}
-
-void seq2Logic() {
-  if (buttonReads[1] == HIGH || buttonReads[2] == HIGH) {
-    nextState = DEAD;
-    return;
-  }
-
-  if (buttonTransitions[0] != HIGH_TO_LOW) return;
-
-  log(" 0 - ", false);
-  log(switchReads[0], true);
-  log(" 1 - ", false);
-  log(switchReads[1], true);
-  log(" 2 - ", false);
-  log(switchReads[2], true);
-  
-  if (switchReads[0] != LOW || switchReads[1] != HIGH || switchReads[2] != HIGH) {
-    nextState = DEAD;
-    return;
-  }
-
-  nextState = SEQ3;
-}
-
-int seq3Step = 1;
-void seq3() {
-  requireNoSwitchTransitions();
-  
-  if (buttonTransitions[0] == HIGH || buttonTransitions[1] == HIGH)
-  {
-    nextState = DEAD; 
-    return;
-  }
-  
-  if (seq3Step == 1) {
-    seq3Step1();  
-  }
-  else if (seq3Step == 2) {
-    seq3Step2();  
-  }
-}
-
-void seq3Step1() {
-  if (buttonTransitions[2] == LOW_TO_HIGH) {
-    log("seq3Step -> 2", true);
-    seq3Step = 2;
-    stateTimer = 0;
-    return;
-  }
-}
-
-const int seq3CombCount = 8;
-int seq3CombCounter = 0;
-
-void seq3Step2() {
-  seq3Presentation();
-  seq3Step2Logic();
-}
-
-void seq3Step2Logic() {
-  if (stateTimer > 2000) {
-    log("seq 3 combination - ", false);
-    log(seq3CombCounter, true);
-    stateTimer = 0;
-    seq3CombCounter++;
-
-    if (seq3CombCounter >= seq3CombCount) {
-      seq3CombCounter = 0;
-    }
-  }
-  
-  if (buttonTransitions[2] != HIGH_TO_LOW) return;
-  log("button released", true);
-    
-  if (seq3CombCounter != 2) {
-    log("wrong button release; combination counter: ", false);
-    log(seq3CombCounter, true);
-    nextState = DEAD;
-    return;
-  }
-
-  nextState = DISARMED;
-  
-}
-
-bool seq3LedDisplays[numLedValues][seq3CombCount] = {
-  {false, true, true, true, false, true, true, true},
-  {false, true, false, true, true, true, true, false},
-  {true, true, true, true, false, true, false, false},
-  {false, false, true, true, false, true, false, true},
-  {true, true, false, true, false, true, false, false},
-  {false, true, false, true, false, false, false, true},
-  {true, false, true, true, true, true, false, false}
-};
-
-void seq3Presentation() {
-  for (int n = 0; n < numLedValues; n++) {
-    int ledValue = seq3LedDisplays[n][seq3CombCounter];
-    ledWrites[n] = ledValue;
-  }
 }
 
 void disarmed() {
